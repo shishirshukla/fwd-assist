@@ -1,15 +1,12 @@
 #!/usr/bin/env node
 /**
- * Rewrite manifest URLs for an HTTPS tunnel and verify endpoints respond.
+ * Rewrite manifest URLs for an HTTPS host and verify endpoints respond.
  *
  * Usage:
  *   node scripts/set-manifest-url.mjs https://abc123.ngrok-free.app
  */
 
-import {
-  normalizeBaseUrl,
-  writeManifestForBase,
-} from "./manifest-utils.mjs";
+import { normalizeBaseUrl, writeManifestForBase } from "./manifest-utils.mjs";
 
 async function checkUrl(url) {
   try {
@@ -23,13 +20,10 @@ async function checkUrl(url) {
 const nextBase = normalizeBaseUrl(process.argv[2] || "");
 const result = writeManifestForBase(nextBase);
 
-if (!result.changed) {
-  console.log(`Manifest already points at ${nextBase}`);
-} else {
-  console.log(`Updated public/manifest.xml`);
-  console.log(`  Base URL : ${nextBase}`);
-  console.log(`  AppDomain: ${result.host}`);
-}
+console.log(`Wrote public/manifest.xml`);
+console.log(`  Base URL : ${nextBase}`);
+console.log(`  AppDomain: ${result.host}`);
+console.log(`\nFor Railway, set PUBLIC_BASE_URL=${nextBase} and use https://${result.host}/manifest.xml`);
 
 const checks = [
   `${nextBase}/icons/icon-64.png`,
@@ -37,22 +31,19 @@ const checks = [
   `${nextBase}/taskpane.html`,
   `${nextBase}/commands.html`,
   `${nextBase}/launchevent.js`,
+  `${nextBase}/manifest.xml`,
 ];
 
 console.log("\nPreflight checks:");
 let failed = 0;
 for (const url of checks) {
-  const result = await checkUrl(url);
-  const label = result.ok ? "OK" : "FAIL";
-  console.log(`  [${label}] ${url}${result.ok ? "" : ` (${result.status})`}`);
-  if (!result.ok) failed += 1;
+  const check = await checkUrl(url);
+  const label = check.ok ? "OK" : "FAIL";
+  console.log(`  [${label}] ${url}${check.ok ? "" : ` (${check.status})`}`);
+  if (!check.ok) failed += 1;
 }
 
 if (failed > 0) {
-  console.error(
-    "\nOne or more URLs are not reachable. Outlook will fail to install until the host is live.",
-  );
+  console.error("\nOne or more URLs are not reachable.");
   process.exit(1);
 }
-
-console.log("\nUpload public/manifest.xml in Outlook Web → My add-ins → Add from file.");

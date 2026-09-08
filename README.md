@@ -32,7 +32,7 @@ Open [http://localhost:43123](http://localhost:43123).
 
 - Simulator: `/` or `/simulator.html`
 - Outlook task pane: `/taskpane.html`
-- Manifest: [`public/manifest.xml`](public/manifest.xml)
+- Manifest (dynamic): `/manifest.xml` (generated from `public/manifest.template.xml`)
 
 ## Deploy on Railway (recommended — no ngrok)
 
@@ -46,7 +46,7 @@ Quick steps:
 2. In [Railway](https://railway.com): **New Project** → **Deploy from GitHub repo** → select `fwd-assist`.
 3. **Settings → Networking** → **Generate Domain**.
 4. **Variables** → set `PUBLIC_BASE_URL` = `https://YOUR-APP.up.railway.app`.
-5. **Redeploy** — build logs should show `Injected manifest URLs for …`.
+5. **Redeploy** — open `https://YOUR-APP.up.railway.app/api/deploy-info` and confirm `configuredBaseUrl` matches your Railway domain.
 6. Download `https://YOUR-APP.up.railway.app/manifest.xml` and sideload in Outlook Web.
 
 Every push to `main` triggers a new Railway deploy automatically.
@@ -167,7 +167,7 @@ Outlook add-ins must be served over **HTTPS**. Point every `https://localhost:43
 
 | Path | Role |
 | --- | --- |
-| `public/manifest.xml` | Outlook add-in manifest |
+| `public/manifest.template.xml` | Manifest template (URLs injected at request time) |
 | `public/launchevent.js` | Send intercept (no DOM; Office event runtime) |
 | `public/commands.html` | Command / runtime HTML host |
 | `public/taskpane.html` | Classification form hosted in Outlook |

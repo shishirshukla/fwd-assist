@@ -4,7 +4,7 @@ buildCommand = "npm ci && npm run build"
 
 [deploy]
 startCommand = "npm start"
-healthcheckPath = "/simulator.html"
+healthcheckPath = "/api/deploy-info"
 healthcheckTimeout = 120
 restartPolicyType = "ON_FAILURE"
 restartPolicyMaxRetries = 3

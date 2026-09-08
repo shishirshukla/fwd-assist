@@ -2,7 +2,7 @@ import { readFileSync, writeFileSync } from "node:fs";
 import { resolve } from "node:path";
 
 export const DEFAULT_BASE = "https://localhost:43123";
-export const manifestPath = resolve("public/manifest.xml");
+export const manifestTemplatePath = resolve("public/manifest.template.xml");
 
 export function normalizeBaseUrl(input) {
   const trimmed = input.trim().replace(/\/+$/, "");
@@ -30,20 +30,60 @@ export function replaceManifestUrls(xml, nextBase) {
 }
 
 export function resolvePublicBaseUrl() {
-  if (process.env.PUBLIC_BASE_URL) {
-    return normalizeBaseUrl(process.env.PUBLIC_BASE_URL);
+  const candidates = [
+    process.env.PUBLIC_BASE_URL,
+    process.env.RAILWAY_STATIC_URL,
+    process.env.RAILWAY_PUBLIC_DOMAIN
+      ? `https://${process.env.RAILWAY_PUBLIC_DOMAIN}`
+      : undefined,
+  ].filter(Boolean);
+
+  for (const value of candidates) {
+    try {
+      return normalizeBaseUrl(value);
+    } catch {
+      continue;
+    }
   }
-  if (process.env.RAILWAY_PUBLIC_DOMAIN) {
-    return normalizeBaseUrl(`https://${process.env.RAILWAY_PUBLIC_DOMAIN}`);
-  }
+
   return null;
 }
 
-export function writeManifestForBase(nextBase) {
-  const current = readFileSync(manifestPath, "utf8");
-  const updated = replaceManifestUrls(current, nextBase);
-  if (updated !== current) {
-    writeFileSync(manifestPath, updated, "utf8");
+export function getPublicBaseUrl() {
+  return resolvePublicBaseUrl() ?? DEFAULT_BASE;
+}
+
+export function isRailwayRuntime() {
+  return Boolean(
+    process.env.RAILWAY_ENVIRONMENT ||
+      process.env.RAILWAY_PROJECT_ID ||
+      process.env.RAILWAY_SERVICE_ID,
+  );
+}
+
+export function loadManifestTemplate() {
+  return readFileSync(manifestTemplatePath, "utf8");
+}
+
+export function buildManifestXml(baseUrl = getPublicBaseUrl()) {
+  return replaceManifestUrls(loadManifestTemplate(), baseUrl);
+}
+
+export function assertManifestConfigured() {
+  if (!isRailwayRuntime()) {
+    return;
   }
-  return { nextBase, host: hostFromUrl(nextBase), changed: updated !== current };
+
+  if (!resolvePublicBaseUrl()) {
+    throw new Error(
+      "Set PUBLIC_BASE_URL (recommended) or enable a public Railway domain before starting. " +
+        "Example: PUBLIC_BASE_URL=https://your-app.up.railway.app",
+    );
+  }
+}
+
+export function writeManifestForBase(nextBase, outputPath = resolve("public/manifest.xml")) {
+  const updated = buildManifestXml(nextBase);
+  writeFileSync(outputPath, updated, "utf8");
+  return { nextBase, host: hostFromUrl(nextBase) };
 }

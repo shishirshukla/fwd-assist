@@ -1,12 +1,16 @@
 #!/usr/bin/env node
-/**
- * Validate public/manifest.xml with Microsoft's office-addin-manifest tool.
- */
 
 import { spawnSync } from "node:child_process";
-import { resolve } from "node:path";
+import { mkdtempSync, writeFileSync } from "node:fs";
+import { tmpdir } from "node:os";
+import { join } from "node:path";
 
-const manifest = resolve("public/manifest.xml");
+import { buildManifestXml } from "./manifest-utils.mjs";
+
+const dir = mkdtempSync(join(tmpdir(), "manifest-validate-"));
+const manifest = join(dir, "manifest.xml");
+writeFileSync(manifest, buildManifestXml(), "utf8");
+
 const result = spawnSync(
   "npx",
   ["--yes", "office-addin-manifest", "validate", manifest],

@@ -19,6 +19,7 @@
 
 # production
 /build
+/public/manifest.xml
 
 # misc
 .DS_Store

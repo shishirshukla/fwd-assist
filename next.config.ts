@@ -11,11 +11,16 @@ const addInHeaders = [
 ];
 
 const nextConfig: NextConfig = {
+  async rewrites() {
+    return [{ source: "/manifest.xml", destination: "/manifest" }];
+  },
   async headers() {
     return [
+      { source: "/manifest", headers: addInHeaders },
+      { source: "/manifest.xml", headers: addInHeaders },
       { source: "/taskpane", headers: addInHeaders },
       { source: "/taskpane/:path*", headers: addInHeaders },
-      { source: "/manifest.xml", headers: addInHeaders },
+      { source: "/api/deploy-info", headers: addInHeaders },
       { source: "/launchevent.js", headers: addInHeaders },
       { source: "/commands.html", headers: addInHeaders },
       { source: "/taskpane.html", headers: addInHeaders },
