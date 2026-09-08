@@ -28,7 +28,7 @@
   <FormSettings>
     <Form xsi:type="ItemRead">
       <DesktopSettings>
-        <SourceLocation DefaultValue="https://localhost:43123/taskpane" />
+        <SourceLocation DefaultValue="https://localhost:43123/taskpane.html" />
         <RequestedHeight>450</RequestedHeight>
       </DesktopSettings>
     </Form>
@@ -86,7 +86,7 @@
       </bt:Images>
       <bt:Urls>
         <bt:Url id="Commands.Url" DefaultValue="https://localhost:43123/commands.html" />
-        <bt:Url id="Taskpane.Url" DefaultValue="https://localhost:43123/taskpane" />
+        <bt:Url id="Taskpane.Url" DefaultValue="https://localhost:43123/taskpane.html" />
       </bt:Urls>
       <bt:ShortStrings>
         <bt:String id="GroupLabel" DefaultValue="Forward Guard" />
@@ -152,7 +152,7 @@
         </bt:Images>
         <bt:Urls>
           <bt:Url id="Commands.Url" DefaultValue="https://localhost:43123/commands.html" />
-          <bt:Url id="Taskpane.Url" DefaultValue="https://localhost:43123/taskpane" />
+          <bt:Url id="Taskpane.Url" DefaultValue="https://localhost:43123/taskpane.html" />
           <bt:Url id="WebViewRuntime.Url" DefaultValue="https://localhost:43123/commands.html" />
           <bt:Url id="JsRuntime.Url" DefaultValue="https://localhost:43123/launchevent.js" />
         </bt:Urls>

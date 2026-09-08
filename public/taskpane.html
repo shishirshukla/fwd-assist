@@ -1,0 +1,64 @@
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>Forward Guard</title>
+    <style>
+      :root { font-family: "Segoe UI", system-ui, sans-serif; color: #201f1e; }
+      body { margin: 0; padding: 16px; background: #fff; }
+      h1 { font-size: 16px; margin: 0 0 4px; }
+      .hint { color: #605e5c; font-size: 12px; margin: 0 0 16px; }
+      label { display: block; font-size: 13px; font-weight: 600; margin: 0 0 4px; }
+      .field { margin-bottom: 12px; }
+      select, input, button { width: 100%; box-sizing: border-box; font: inherit; }
+      select, input[type="date"] {
+        height: 32px; border: 1px solid #d1d1d1; border-radius: 6px; padding: 0 8px;
+      }
+      button {
+        height: 32px; border: 0; border-radius: 6px; background: #0f6cbd;
+        color: #fff; font-weight: 600; cursor: pointer;
+      }
+      button:disabled { opacity: 0.6; cursor: default; }
+      .error { color: #c50f1f; font-size: 12px; margin-top: 4px; }
+      .ok { color: #0e7c3a; font-size: 13px; }
+    </style>
+  </head>
+  <body>
+    <h1>Forward Guard</h1>
+    <p class="hint">Priority, End Date, and Category are required before a forwarded message can be sent.</p>
+    <form id="form">
+      <div class="field">
+        <label for="priority">Priority</label>
+        <select id="priority" required>
+          <option value="">Select priority</option>
+          <option>High</option>
+          <option>Medium</option>
+          <option>Low</option>
+        </select>
+        <div class="error" id="priority-error"></div>
+      </div>
+      <div class="field">
+        <label for="endDate">End Date</label>
+        <input id="endDate" type="date" required />
+        <div class="error" id="endDate-error"></div>
+      </div>
+      <div class="field">
+        <label for="category">Category</label>
+        <select id="category" required>
+          <option value="">Select category</option>
+          <option>Work</option>
+          <option>Personal</option>
+          <option>Follow-up</option>
+          <option>Legal</option>
+          <option>Finance</option>
+          <option>Other</option>
+        </select>
+        <div class="error" id="category-error"></div>
+      </div>
+      <button type="submit" id="save">Save classification</button>
+    </form>
+    <p class="ok" id="status" hidden></p>
+    <script src="taskpane.js"></script>
+  </body>
+</html>

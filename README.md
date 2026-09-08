@@ -12,7 +12,7 @@ Office add-in for Outlook on the web. It runs when the user clicks **Send**, che
 4. If it is a forward and classification is missing, send is cancelled and Outlook can open the **Classify forward** task pane (`/taskpane`).
 5. Saving the form writes custom properties (and optional internet headers) on the item. The next Send is allowed.
 
-The home page is an **Outlook-style simulator** so you can try the same flow in a browser without sideloading.
+The home page embeds an **Outlook-style simulator** (`/simulator.html`) so you can try the same flow in a browser without sideloading.
 
 ## Run locally
 
@@ -21,10 +21,17 @@ npm install
 npm run dev
 ```
 
+Or a production build:
+
+```bash
+npm run build
+npm start
+```
+
 Open [http://localhost:43123](http://localhost:43123).
 
-- Simulator: `/`
-- Task pane (used inside Outlook): `/taskpane`
+- Simulator: `/` or `/simulator.html`
+- Outlook task pane: `/taskpane.html`
 - Manifest: [`public/manifest.xml`](public/manifest.xml)
 
 ## Sideload in Outlook on the web
@@ -48,5 +55,5 @@ Outlook add-ins must be served over **HTTPS**. Point every `https://localhost:43
 | `public/manifest.xml` | Outlook add-in manifest |
 | `public/launchevent.js` | Send intercept (no DOM; Office event runtime) |
 | `public/commands.html` | Command / runtime HTML host |
-| `app/taskpane` | Classification form hosted in Outlook |
-| `app/page.tsx` | Browser simulator of the Send flow |
+| `public/taskpane.html` | Classification form hosted in Outlook |
+| `public/simulator.html` | Browser simulator of the Send flow |

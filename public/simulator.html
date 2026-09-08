@@ -1,0 +1,377 @@
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>Forward Guard — Outlook add-in</title>
+    <style>
+      :root {
+        --outlook-blue: #0f6cbd;
+        --outlook-blue-hover: #115ea3;
+        --bg: #f3f2f1;
+        --border: #edebe9;
+        --muted: #605e5c;
+        --text: #201f1e;
+      }
+      * { box-sizing: border-box; }
+      html, body { height: 100%; margin: 0; }
+      body {
+        font-family: "Segoe UI", system-ui, sans-serif;
+        background: var(--bg);
+        color: var(--text);
+        display: flex;
+        flex-direction: column;
+      }
+      header {
+        height: 48px;
+        display: flex;
+        align-items: center;
+        gap: 12px;
+        padding: 0 16px;
+        background: var(--outlook-blue);
+        color: #fff;
+        font-weight: 600;
+      }
+      header span.sub { font-weight: 400; font-size: 12px; opacity: 0.85; }
+      .shell { display: flex; flex: 1; min-height: 0; }
+      nav {
+        width: 208px;
+        background: #fff;
+        border-right: 1px solid var(--border);
+        padding: 12px;
+      }
+      nav p {
+        margin: 0 8px 8px;
+        font-size: 11px;
+        letter-spacing: 0.04em;
+        text-transform: uppercase;
+        color: var(--muted);
+        font-weight: 600;
+      }
+      nav li { list-style: none; padding: 6px 8px; border-radius: 4px; }
+      nav ul { margin: 0; padding: 0; }
+      main { flex: 1; min-width: 0; padding: 16px; display: flex; flex-direction: column; }
+      .toolbar { display: flex; flex-wrap: wrap; gap: 8px; margin-bottom: 12px; align-items: center; }
+      button {
+        font: inherit;
+        cursor: pointer;
+        border-radius: 8px;
+        height: 32px;
+        padding: 0 10px;
+        border: 1px solid transparent;
+      }
+      .btn { background: #fff; border-color: #d1d1d1; }
+      .btn.active { background: #242424; color: #fff; border-color: #242424; }
+      .send {
+        background: var(--outlook-blue);
+        color: #fff;
+        display: inline-flex;
+        align-items: center;
+        gap: 6px;
+      }
+      .send:hover { background: var(--outlook-blue-hover); }
+      .badge {
+        font-size: 12px;
+        padding: 2px 8px;
+        border-radius: 999px;
+        background: #e6e6e6;
+      }
+      .row { display: flex; flex: 1; min-height: 0; gap: 12px; }
+      .compose {
+        flex: 1;
+        min-width: 0;
+        background: #fff;
+        border: 1px solid var(--border);
+        border-radius: 8px;
+        display: flex;
+        flex-direction: column;
+        overflow: hidden;
+        box-shadow: 0 1px 2px rgb(0 0 0 / 6%);
+      }
+      .ribbon {
+        display: flex;
+        align-items: center;
+        gap: 8px;
+        padding: 8px 12px;
+        background: #faf9f8;
+        border-bottom: 1px solid var(--border);
+      }
+      .hint { font-size: 12px; color: var(--muted); }
+      .field {
+        display: flex;
+        align-items: center;
+        gap: 12px;
+        padding: 8px 16px;
+        border-bottom: 1px solid var(--border);
+        font-size: 14px;
+      }
+      .field span { width: 56px; color: var(--muted); }
+      .field input, textarea {
+        flex: 1;
+        border: 0;
+        outline: none;
+        font: inherit;
+        width: 100%;
+        background: transparent;
+      }
+      textarea { min-height: 180px; padding: 12px 16px; resize: none; line-height: 1.5; }
+      .status { padding: 12px 16px; border-top: 1px solid var(--border); font-size: 14px; min-height: 44px; }
+      .warn { color: #8a3707; }
+      .ok { color: #0e7c3a; }
+      .err { color: #c50f1f; }
+      aside {
+        width: 288px;
+        background: #fff;
+        border: 1px solid var(--border);
+        border-radius: 8px;
+        padding: 16px;
+        box-shadow: 0 1px 2px rgb(0 0 0 / 6%);
+      }
+      aside h2 { margin: 0 0 4px; font-size: 14px; }
+      aside p { margin: 0 0 12px; font-size: 12px; color: var(--muted); }
+      label { display: block; font-size: 13px; font-weight: 600; margin: 0 0 4px; }
+      .group { margin-bottom: 12px; }
+      select, input[type="date"] {
+        width: 100%;
+        height: 32px;
+        border: 1px solid #d1d1d1;
+        border-radius: 8px;
+        padding: 0 8px;
+        font: inherit;
+      }
+      .field-error { color: #c50f1f; font-size: 12px; margin-top: 4px; min-height: 16px; }
+      #save { width: 100%; background: #242424; color: #fff; }
+      .hidden { display: none; }
+      @media (max-width: 800px) {
+        nav { display: none; }
+        .row { flex-direction: column; }
+        aside { width: 100%; }
+        header span.sub { display: none; }
+      }
+    </style>
+  </head>
+  <body>
+    <header>
+      Forward Guard
+      <span class="sub">Outlook Web add-in preview</span>
+    </header>
+    <div class="shell">
+      <nav>
+        <p>Folders</p>
+        <ul>
+          <li>Inbox</li>
+          <li>Sent Items</li>
+          <li>Drafts</li>
+        </ul>
+      </nav>
+      <main>
+        <div class="toolbar">
+          <button type="button" class="btn active" id="load-forward">Load forwarded email</button>
+          <button type="button" class="btn" id="load-new">Load new email</button>
+          <span class="badge" id="mode-badge">Forward detected</span>
+        </div>
+        <div class="row">
+          <section class="compose">
+            <div class="ribbon">
+              <button type="button" class="send" id="send">Send</button>
+              <span class="hint">On Send, the add-in checks whether this is a forward.</span>
+            </div>
+            <label class="field">
+              <span>To</span>
+              <input id="to" placeholder="Add recipients" value="legal@contoso.com" autocomplete="off" />
+            </label>
+            <label class="field">
+              <span>Subject</span>
+              <input id="subject" placeholder="Subject" value="FW: Q3 vendor contract" />
+            </label>
+            <textarea id="body" placeholder="Write your message"></textarea>
+            <div class="status" id="status"></div>
+          </section>
+          <aside id="form-pane" class="hidden" aria-label="Classify this forward">
+            <h2>Classify this forward</h2>
+            <p>Send is paused. Fill in these three fields, then the message can go out.</p>
+            <form id="form">
+              <div class="group">
+                <label for="priority">Priority</label>
+                <select id="priority">
+                  <option value="">Select priority</option>
+                  <option>High</option>
+                  <option>Medium</option>
+                  <option>Low</option>
+                </select>
+                <div class="field-error" id="priority-error"></div>
+              </div>
+              <div class="group">
+                <label for="endDate">End Date</label>
+                <input id="endDate" type="date" />
+                <div class="field-error" id="endDate-error"></div>
+              </div>
+              <div class="group">
+                <label for="category">Category</label>
+                <select id="category">
+                  <option value="">Select category</option>
+                  <option>Work</option>
+                  <option>Personal</option>
+                  <option>Follow-up</option>
+                  <option>Legal</option>
+                  <option>Finance</option>
+                  <option>Other</option>
+                </select>
+                <div class="field-error" id="category-error"></div>
+              </div>
+              <button type="submit" id="save">Save and send</button>
+            </form>
+          </aside>
+        </div>
+      </main>
+    </div>
+    <script>
+      const ORIGINAL = `---------- Forwarded message ---------
+From: Alex Chen <alex.chen@contoso.com>
+Sent: Monday, September 7, 2026 4:12 PM
+To: you@contoso.com
+Subject: Q3 vendor contract
+
+Please review the attached vendor terms before Friday.`;
+
+      const state = {
+        mode: "forward",
+        classification: null,
+      };
+
+      const els = {
+        to: document.getElementById("to"),
+        subject: document.getElementById("subject"),
+        body: document.getElementById("body"),
+        status: document.getElementById("status"),
+        formPane: document.getElementById("form-pane"),
+        badge: document.getElementById("mode-badge"),
+        loadForward: document.getElementById("load-forward"),
+        loadNew: document.getElementById("load-new"),
+        priority: document.getElementById("priority"),
+        endDate: document.getElementById("endDate"),
+        category: document.getElementById("category"),
+      };
+
+      function todayIso() {
+        const now = new Date();
+        return [
+          now.getFullYear(),
+          String(now.getMonth() + 1).padStart(2, "0"),
+          String(now.getDate()).padStart(2, "0"),
+        ].join("-");
+      }
+
+      function isForwarded() {
+        return state.mode === "forward" || /^(fw|fwd)\s*:/i.test(els.subject.value.trim());
+      }
+
+      function setStatus(text, kind) {
+        els.status.className = "status " + (kind || "");
+        els.status.textContent = text;
+      }
+
+      function refreshBadge() {
+        if (isForwarded()) {
+          els.badge.textContent = "Forward detected";
+        } else {
+          els.badge.textContent = "New message";
+        }
+      }
+
+      function loadForward() {
+        state.mode = "forward";
+        state.classification = null;
+        els.to.value = "legal@contoso.com";
+        els.subject.value = "FW: Q3 vendor contract";
+        els.body.value = "Hi Legal,\n\nPassing this along for review.\n\n" + ORIGINAL;
+        els.formPane.classList.add("hidden");
+        els.loadForward.classList.add("active");
+        els.loadNew.classList.remove("active");
+        refreshBadge();
+        setStatus("", "");
+      }
+
+      function loadNew() {
+        state.mode = "new";
+        state.classification = null;
+        els.to.value = "";
+        els.subject.value = "";
+        els.body.value = "";
+        els.formPane.classList.add("hidden");
+        els.loadNew.classList.add("active");
+        els.loadForward.classList.remove("active");
+        refreshBadge();
+        setStatus("", "");
+      }
+
+      function send() {
+        if (!els.to.value.trim()) {
+          els.formPane.classList.add("hidden");
+          setStatus("Add at least one recipient before sending.", "err");
+          return;
+        }
+        if (isForwarded() && !state.classification) {
+          els.formPane.classList.remove("hidden");
+          setStatus("Send was stopped. This is a forwarded email — classify it before sending.", "warn");
+          return;
+        }
+        els.formPane.classList.add("hidden");
+        if (state.classification) {
+          const c = state.classification;
+          setStatus("Sent after classification: " + c.priority + " · " + c.endDate + " · " + c.category, "ok");
+        } else {
+          setStatus("Sent. This was not a forwarded message, so the form was skipped.", "ok");
+        }
+      }
+
+      document.getElementById("send").addEventListener("click", send);
+      els.loadForward.addEventListener("click", loadForward);
+      els.loadNew.addEventListener("click", loadNew);
+      els.subject.addEventListener("input", () => {
+        state.classification = null;
+        refreshBadge();
+      });
+      els.endDate.min = todayIso();
+
+      document.getElementById("form").addEventListener("submit", (event) => {
+        event.preventDefault();
+        const priority = els.priority.value;
+        const endDate = els.endDate.value;
+        const category = els.category.value;
+        let valid = true;
+        document.getElementById("priority-error").textContent = "";
+        document.getElementById("endDate-error").textContent = "";
+        document.getElementById("category-error").textContent = "";
+        if (!priority) {
+          document.getElementById("priority-error").textContent = "Choose a priority.";
+          valid = false;
+        }
+        if (!endDate) {
+          document.getElementById("endDate-error").textContent = "Choose an end date.";
+          valid = false;
+        } else if (endDate < todayIso()) {
+          document.getElementById("endDate-error").textContent = "End date cannot be in the past.";
+          valid = false;
+        }
+        if (!category) {
+          document.getElementById("category-error").textContent = "Choose a category.";
+          valid = false;
+        }
+        if (!valid) return;
+
+        state.classification = { priority, endDate, category };
+        const line = "[Forward classification: Priority=" + priority + " | End Date=" + endDate + " | Category=" + category + "]";
+        if (!els.body.value.includes("[Forward classification:")) {
+          els.body.value = line + "\n\n" + els.body.value;
+        }
+        els.priority.value = "";
+        els.endDate.value = "";
+        els.category.value = "";
+        send();
+      });
+
+      loadForward();
+    </script>
+  </body>
+</html>
