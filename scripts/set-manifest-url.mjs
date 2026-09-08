@@ -6,36 +6,10 @@
  *   node scripts/set-manifest-url.mjs https://abc123.ngrok-free.app
  */
 
-import { readFileSync, writeFileSync } from "node:fs";
-import { resolve } from "node:path";
-
-const DEFAULT_BASE = "https://localhost:43123";
-const manifestPath = resolve("public/manifest.xml");
-
-function normalizeBaseUrl(input) {
-  const trimmed = input.trim().replace(/\/+$/, "");
-  if (!/^https:\/\/.+/i.test(trimmed)) {
-    throw new Error("Base URL must start with https:// (Outlook requires HTTPS).");
-  }
-  return trimmed;
-}
-
-function hostFromUrl(url) {
-  return new URL(url).hostname;
-}
-
-function replaceManifestUrls(xml, nextBase) {
-  const host = hostFromUrl(nextBase);
-  let updated = xml.replace(/https:\/\/[^"<]+/g, (match) => {
-    const path = match.replace(/^https:\/\/[^/]+/, "");
-    return nextBase + (path || "");
-  });
-  updated = updated.replace(
-    /<AppDomain>[^<]+<\/AppDomain>/,
-    `<AppDomain>${host}</AppDomain>`,
-  );
-  return updated;
-}
+import {
+  normalizeBaseUrl,
+  writeManifestForBase,
+} from "./manifest-utils.mjs";
 
 async function checkUrl(url) {
   try {
@@ -47,16 +21,14 @@ async function checkUrl(url) {
 }
 
 const nextBase = normalizeBaseUrl(process.argv[2] || "");
-const current = readFileSync(manifestPath, "utf8");
-const updated = replaceManifestUrls(current, nextBase);
+const result = writeManifestForBase(nextBase);
 
-if (updated === current) {
+if (!result.changed) {
   console.log(`Manifest already points at ${nextBase}`);
 } else {
-  writeFileSync(manifestPath, updated, "utf8");
   console.log(`Updated public/manifest.xml`);
   console.log(`  Base URL : ${nextBase}`);
-  console.log(`  AppDomain: ${hostFromUrl(nextBase)}`);
+  console.log(`  AppDomain: ${result.host}`);
 }
 
 const checks = [
@@ -78,7 +50,7 @@ for (const url of checks) {
 
 if (failed > 0) {
   console.error(
-    "\nOne or more URLs are not reachable from this machine. Outlook will also fail to install until ngrok and npm start are running.",
+    "\nOne or more URLs are not reachable. Outlook will fail to install until the host is live.",
   );
   process.exit(1);
 }

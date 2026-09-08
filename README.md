@@ -34,7 +34,24 @@ Open [http://localhost:43123](http://localhost:43123).
 - Outlook task pane: `/taskpane.html`
 - Manifest: [`public/manifest.xml`](public/manifest.xml)
 
-## Test in Outlook on the web
+## Deploy on Railway (recommended — no ngrok)
+
+Use Railway for a permanent **HTTPS** URL so Outlook can load the add-in without a tunnel.
+
+**Full guide:** [`docs/RAILWAY.md`](docs/RAILWAY.md)
+
+Quick steps:
+
+1. Push this repo to **GitHub**.
+2. In [Railway](https://railway.com): **New Project** → **Deploy from GitHub repo** → select `fwd-assist`.
+3. **Settings → Networking** → **Generate Domain**.
+4. **Variables** → set `PUBLIC_BASE_URL` = `https://YOUR-APP.up.railway.app`.
+5. **Redeploy** — build logs should show `Injected manifest URLs for …`.
+6. Download `https://YOUR-APP.up.railway.app/manifest.xml` and sideload in Outlook Web.
+
+Every push to `main` triggers a new Railway deploy automatically.
+
+## Test in Outlook on the web (local + ngrok)
 
 Outlook loads add-ins only over **HTTPS**. Your machine serves the app on port **43123**; expose it with a tunnel (ngrok is the simplest), point the manifest at that URL, then sideload.
 
@@ -97,11 +114,36 @@ If Send is not blocked on a forward, open **Classify forward** manually from the
 
 | Issue | What to check |
 | --- | --- |
+| **Add-in installation fails** | See [Installation failures](#installation-failures) below. |
 | Add-in fails to install | Manifest URLs must be **https** and reachable from the public internet (tunnel running, `npm start` still up). |
 | Blank task pane | Open `https://YOUR-TUNNEL/taskpane.html` in a normal browser tab first. |
 | Send never intercepted | `OnMessageSend` needs Mailbox **1.12+** and a Microsoft 365 mailbox. Your tenant admin may need to allow **on-send** / Smart Alerts add-ins. |
 | “We can’t load this add-in” | Tunnel URL changed — re-run `npm run manifest:url` and remove/re-add the add-in. |
 | ngrok browser warning | Click through the ngrok interstitial once, or use a paid/static domain. |
+
+### Installation failures
+
+Outlook rejects manifests for a few common reasons. Run these checks **before** uploading:
+
+```bash
+# 1. Validate XML schema (must pass)
+npm run manifest:validate
+
+# 2. Point manifest at your live HTTPS tunnel and verify URLs respond
+npm run manifest:url -- https://YOUR-SUBDOMAIN.ngrok-free.app
+```
+
+**Checklist if install still fails:**
+
+1. **Do not upload a manifest with `localhost` URLs.** Outlook’s servers cannot fetch icons or pages from your machine. Always run `npm run manifest:url` with your ngrok **https** URL first.
+2. **`AppDomain` must be the hostname only** (e.g. `abc123.ngrok-free.app`), not `https://…`. The helper script sets this automatically.
+3. **`IconUrl` must be a PNG file**, not the site root. It should end with `/icons/icon-64.png`.
+4. **Keep `npm start` and ngrok running** while installing. If any URL returns 404, install fails.
+5. **Remove a broken sideload** before retrying: My add-ins → Custom add-ins → ⋯ → Remove, then upload the new manifest.
+6. **Use a Microsoft 365 work/school account.** Personal Outlook.com accounts have limited custom add-in support.
+7. **“Sideloading rejected by Exchange”** — your tenant may block custom add-ins; ask an admin to allow user-installed add-ins for testing.
+
+If install fails, open browser DevTools (F12) → **Network** while uploading the manifest and look for a `400` response — the body often says `Sideloading rejected by Exchange`.
 
 ### Remove the test add-in
 
@@ -131,3 +173,5 @@ Outlook add-ins must be served over **HTTPS**. Point every `https://localhost:43
 | `public/taskpane.html` | Classification form hosted in Outlook |
 | `public/simulator.html` | Browser simulator of the Send flow |
 | `scripts/set-manifest-url.mjs` | Rewrite manifest URLs for your HTTPS tunnel |
+| `scripts/inject-manifest-url.mjs` | Inject Railway/production URLs at build time |
+| `docs/RAILWAY.md` | Deploy from GitHub to Railway (no ngrok) |
