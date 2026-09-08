@@ -1,7 +1,6 @@
 #!/usr/bin/env node
 /**
- * Rewrite every https://localhost:43123 URL in public/manifest.xml
- * to your public HTTPS base URL (e.g. an ngrok tunnel).
+ * Rewrite manifest URLs for an HTTPS tunnel and verify endpoints respond.
  *
  * Usage:
  *   node scripts/set-manifest-url.mjs https://abc123.ngrok-free.app
@@ -21,24 +20,67 @@ function normalizeBaseUrl(input) {
   return trimmed;
 }
 
+function hostFromUrl(url) {
+  return new URL(url).hostname;
+}
+
+function replaceManifestUrls(xml, nextBase) {
+  const host = hostFromUrl(nextBase);
+  let updated = xml.replace(/https:\/\/[^"<]+/g, (match) => {
+    const path = match.replace(/^https:\/\/[^/]+/, "");
+    return nextBase + (path || "");
+  });
+  updated = updated.replace(
+    /<AppDomain>[^<]+<\/AppDomain>/,
+    `<AppDomain>${host}</AppDomain>`,
+  );
+  return updated;
+}
+
+async function checkUrl(url) {
+  try {
+    const response = await fetch(url, { redirect: "follow" });
+    return { url, ok: response.ok, status: response.status };
+  } catch (error) {
+    return { url, ok: false, status: String(error) };
+  }
+}
+
 const nextBase = normalizeBaseUrl(process.argv[2] || "");
 const current = readFileSync(manifestPath, "utf8");
+const updated = replaceManifestUrls(current, nextBase);
 
-let updated = current;
-if (current.includes(nextBase)) {
-  console.log(`Manifest already uses ${nextBase}`);
-  process.exit(0);
-}
-
-if (current.includes(DEFAULT_BASE)) {
-  updated = current.replaceAll(DEFAULT_BASE, nextBase);
+if (updated === current) {
+  console.log(`Manifest already points at ${nextBase}`);
 } else {
-  const match = current.match(/https:\/\/[^"<]+/);
-  if (!match) {
-    throw new Error("Could not find an existing https:// base URL in manifest.xml");
-  }
-  updated = current.replaceAll(match[0], nextBase);
+  writeFileSync(manifestPath, updated, "utf8");
+  console.log(`Updated public/manifest.xml`);
+  console.log(`  Base URL : ${nextBase}`);
+  console.log(`  AppDomain: ${hostFromUrl(nextBase)}`);
 }
 
-writeFileSync(manifestPath, updated, "utf8");
-console.log(`Updated public/manifest.xml → ${nextBase}`);
+const checks = [
+  `${nextBase}/icons/icon-64.png`,
+  `${nextBase}/icons/icon-128.png`,
+  `${nextBase}/taskpane.html`,
+  `${nextBase}/commands.html`,
+  `${nextBase}/launchevent.js`,
+];
+
+console.log("\nPreflight checks:");
+let failed = 0;
+for (const url of checks) {
+  const result = await checkUrl(url);
+  const label = result.ok ? "OK" : "FAIL";
+  console.log(`  [${label}] ${url}${result.ok ? "" : ` (${result.status})`}`);
+  if (!result.ok) failed += 1;
+}
+
+if (failed > 0) {
+  console.error(
+    "\nOne or more URLs are not reachable from this machine. Outlook will also fail to install until ngrok and npm start are running.",
+  );
+  process.exit(1);
+}
+
+console.log("\nUpload public/manifest.xml in Outlook Web → My add-ins → Add from file.");

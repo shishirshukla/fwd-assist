@@ -6,16 +6,16 @@
   xmlns:mailappor="http://schemas.microsoft.com/office/mailappversionoverrides/1.0"
   xsi:type="MailApp">
   <Id>8c3d6a12-9f41-4b6e-a2d8-71e04c9f1b22</Id>
-  <Version>1.0.0</Version>
+  <Version>1.0.0.0</Version>
   <ProviderName>Forward Guard</ProviderName>
   <DefaultLocale>en-US</DefaultLocale>
   <DisplayName DefaultValue="Forward Guard" />
   <Description DefaultValue="Stops send on forwarded messages until Priority, End Date, and Category are provided." />
   <IconUrl DefaultValue="https://localhost:43123/icons/icon-64.png" />
   <HighResolutionIconUrl DefaultValue="https://localhost:43123/icons/icon-128.png" />
-  <SupportUrl DefaultValue="https://localhost:43123" />
+  <SupportUrl DefaultValue="https://localhost:43123/simulator.html" />
   <AppDomains>
-    <AppDomain>https://localhost:43123</AppDomain>
+    <AppDomain>localhost</AppDomain>
   </AppDomains>
   <Hosts>
     <Host Name="Mailbox" />
@@ -26,10 +26,9 @@
     </Sets>
   </Requirements>
   <FormSettings>
-    <Form xsi:type="ItemRead">
+    <Form xsi:type="ItemEdit">
       <DesktopSettings>
         <SourceLocation DefaultValue="https://localhost:43123/taskpane.html" />
-        <RequestedHeight>450</RequestedHeight>
       </DesktopSettings>
     </Form>
   </FormSettings>
@@ -70,10 +69,6 @@
                 </Control>
               </Group>
             </OfficeTab>
-          </ExtensionPoint>
-          <!-- Outlook on the web (classic on-send). Tenant admins must allow on-send add-ins. -->
-          <ExtensionPoint xsi:type="Events">
-            <Event Type="ItemSend" FunctionExecution="synchronous" FunctionName="onMessageSendHandler" />
           </ExtensionPoint>
         </DesktopFormFactor>
       </Host>
@@ -128,7 +123,6 @@
                       <bt:Image size="80" resid="Icon80" />
                     </Icon>
                     <Action xsi:type="ShowTaskpane">
-                      <TaskpaneId>Office.AutoShowTaskpaneWithDocument</TaskpaneId>
                       <SourceLocation resid="Taskpane.Url" />
                     </Action>
                   </Control>
