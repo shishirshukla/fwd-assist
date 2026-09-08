@@ -34,9 +34,82 @@ Open [http://localhost:43123](http://localhost:43123).
 - Outlook task pane: `/taskpane.html`
 - Manifest: [`public/manifest.xml`](public/manifest.xml)
 
-## Sideload in Outlook on the web
+## Test in Outlook on the web
 
-Outlook add-ins must be served over **HTTPS**. Point every `https://localhost:43123` URL in `public/manifest.xml` at your HTTPS host (trusted local certs, or a tunnel such as ngrok), then:
+Outlook loads add-ins only over **HTTPS**. Your machine serves the app on port **43123**; expose it with a tunnel (ngrok is the simplest), point the manifest at that URL, then sideload.
+
+### 1. Clone and run (WSL)
+
+```bash
+cd ~/fwd-assist   # or wherever you cloned the repo
+npm install
+npm run build
+npm start
+```
+
+Leave that terminal running. Confirm locally: `curl -I http://127.0.0.1:43123/taskpane.html`
+
+### 2. HTTPS tunnel
+
+In a **second WSL terminal**, install and start ngrok (one-time signup at [ngrok.com](https://ngrok.com)):
+
+```bash
+# Example with ngrok — any HTTPS reverse proxy works
+ngrok http 43123
+```
+
+Copy the **https** forwarding URL (e.g. `https://abc123.ngrok-free.app`). Do not use the `http://` URL.
+
+### 3. Point the manifest at your tunnel
+
+```bash
+npm run manifest:url -- https://abc123.ngrok-free.app
+```
+
+This rewrites every `https://localhost:43123` entry in `public/manifest.xml`.
+
+Quick sanity check in a browser:
+
+- `https://YOUR-TUNNEL/taskpane.html` — classification form
+- `https://YOUR-TUNNEL/manifest.xml` — manifest downloads
+
+### 4. Sideload in Outlook on the web
+
+1. Open [Outlook on the web](https://outlook.office.com) and sign in with a **Microsoft 365** work or school account (personal Outlook.com has limited add-in support).
+2. Open any message → **Forward** (or start a new compose and forward an existing mail).
+3. On the ribbon: **Apps** (or **Get Add-ins**) → **My add-ins**.
+4. Under **Custom add-ins** → **Add a custom add-in** → **Add from file**.
+5. Upload `public/manifest.xml` from your repo (the file you just updated with the tunnel URL).
+6. Accept the prompt. You should see **Forward Guard** on the compose ribbon and a **Classify forward** button.
+
+### 5. Exercise the Send intercept
+
+| Step | Action | Expected result |
+| --- | --- | --- |
+| 1 | Forward a message, click **Send** | Send is blocked; Outlook may show a notification and open the task pane |
+| 2 | Fill **Priority**, **End Date**, **Category** → **Save classification** | Success message in the pane |
+| 3 | Click **Send** again | Message sends |
+| 4 | Send a **new** (non-forward) message | Sends immediately — no form |
+
+If Send is not blocked on a forward, open **Classify forward** manually from the ribbon, save the form, then try Send again.
+
+### Requirements and troubleshooting
+
+| Issue | What to check |
+| --- | --- |
+| Add-in fails to install | Manifest URLs must be **https** and reachable from the public internet (tunnel running, `npm start` still up). |
+| Blank task pane | Open `https://YOUR-TUNNEL/taskpane.html` in a normal browser tab first. |
+| Send never intercepted | `OnMessageSend` needs Mailbox **1.12+** and a Microsoft 365 mailbox. Your tenant admin may need to allow **on-send** / Smart Alerts add-ins. |
+| “We can’t load this add-in” | Tunnel URL changed — re-run `npm run manifest:url` and remove/re-add the add-in. |
+| ngrok browser warning | Click through the ngrok interstitial once, or use a paid/static domain. |
+
+### Remove the test add-in
+
+**My add-ins** → **Custom add-ins** → **⋯** next to Forward Guard → **Remove**.
+
+## Sideload in Outlook on the web (short)
+
+Outlook add-ins must be served over **HTTPS**. Point every `https://localhost:43123` URL in `public/manifest.xml` at your HTTPS host (tunnel or trusted local certs), then:
 
 1. In Outlook on the web, open a message compose window.
 2. Go to **Get add-ins** → **My add-ins** → **Add a custom add-in** → **Add from file**.
@@ -57,3 +130,4 @@ Outlook add-ins must be served over **HTTPS**. Point every `https://localhost:43
 | `public/commands.html` | Command / runtime HTML host |
 | `public/taskpane.html` | Classification form hosted in Outlook |
 | `public/simulator.html` | Browser simulator of the Send flow |
+| `scripts/set-manifest-url.mjs` | Rewrite manifest URLs for your HTTPS tunnel |
