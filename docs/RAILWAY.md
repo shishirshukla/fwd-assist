@@ -106,5 +106,5 @@ If `manifest.xml` still shows `localhost`, `PUBLIC_BASE_URL` is not set or the r
 | --- | --- |
 | Build failed / exit 240 | Railway skipped Tailwind (`devDependencies`) because `NODE_ENV=production`. Current `main` uses `npm ci --include=dev`. Redeploy. |
 | `Cannot find module '@tailwindcss/postcss'` | Same as above — pull latest and redeploy |
-| `manifest.xml` still shows `localhost` | Set `PUBLIC_BASE_URL` and check `/api/deploy-info` |
+| Send blocked but no form | Outlook Web often shows only a banner. Click **Classify forward** on the compose ribbon, or the **Classify forward** button on the Send dialog. Remove and re-add the add-in after this update (manifest version 1.0.2). |
 
