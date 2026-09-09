@@ -34,13 +34,16 @@ export function resolvePublicBaseUrl() {
     process.env.PUBLIC_BASE_URL,
     process.env.RAILWAY_STATIC_URL,
     process.env.RAILWAY_PUBLIC_DOMAIN
-      ? `https://${process.env.RAILWAY_PUBLIC_DOMAIN}`
+      ? `https://${process.env.RAILWAY_PUBLIC_DOMAIN.replace(/^https?:\/\//, "")}`
       : undefined,
   ].filter(Boolean);
 
   for (const value of candidates) {
     try {
-      return normalizeBaseUrl(value);
+      const withScheme = /^https?:\/\//i.test(value)
+        ? value
+        : `https://${value}`;
+      return normalizeBaseUrl(withScheme);
     } catch {
       continue;
     }
