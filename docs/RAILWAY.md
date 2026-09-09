@@ -46,7 +46,9 @@ Railway also sets `RAILWAY_PUBLIC_DOMAIN` at **runtime** as a fallback, but `PUB
 ## 5. Deploy
 
 ```bash
-npm ci && npm run build && npm start
+npm ci --include=dev
+npm run build
+npm start
 ```
 
 On startup you should see in the deploy logs:
@@ -97,3 +99,12 @@ If `manifest.xml` still shows `localhost`, `PUBLIC_BASE_URL` is not set or the r
 | URL | `http://localhost:43123` | `https://*.up.railway.app` |
 | Manifest | Defaults to `localhost` | Uses `PUBLIC_BASE_URL` at runtime |
 | Outlook sideload | Needs ngrok | Works directly |
+
+## Troubleshooting
+
+| Problem | Fix |
+| --- | --- |
+| Build failed / exit 240 | Railway skipped Tailwind (`devDependencies`) because `NODE_ENV=production`. Current `main` uses `npm ci --include=dev`. Redeploy. |
+| `Cannot find module '@tailwindcss/postcss'` | Same as above — pull latest and redeploy |
+| `manifest.xml` still shows `localhost` | Set `PUBLIC_BASE_URL` and check `/api/deploy-info` |
+
