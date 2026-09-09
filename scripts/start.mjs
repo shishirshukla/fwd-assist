@@ -1,6 +1,7 @@
 #!/usr/bin/env node
 /**
- * Cross-platform production start (Windows cmd/PowerShell cannot expand ${PORT:-43123}).
+ * Start the app on Windows, macOS, and Linux.
+ * Uses next start when a production build exists; otherwise next dev.
  */
 
 import { existsSync } from "node:fs";
@@ -16,8 +17,8 @@ import {
 } from "./manifest-utils.mjs";
 
 const root = join(dirname(fileURLToPath(import.meta.url)), "..");
-const nextBin = join(root, "node_modules", "next", "dist", "bin", "next");
 const port = process.env.PORT || "43123";
+const hasBuild = existsSync(join(root, ".next", "BUILD_ID"));
 
 try {
   assertManifestConfigured();
@@ -26,20 +27,8 @@ try {
   process.exit(1);
 }
 
-if (!existsSync(join(root, "node_modules"))) {
-  console.error("Dependencies are missing. Run:  npm install");
-  process.exit(1);
-}
-
-if (!existsSync(join(root, ".next"))) {
-  console.error("No production build found. Run:  npm run build");
-  console.error("Then run:                      npm start");
-  console.error("For local UI work, use:         npm run dev");
-  process.exit(1);
-}
-
-if (!existsSync(nextBin)) {
-  console.error("Next.js is not installed. Run:  npm install");
+if (!existsSync(join(root, "node_modules", "next"))) {
+  console.error("Dependencies are missing. In this folder run:\n  npm install");
   process.exit(1);
 }
 
@@ -49,14 +38,21 @@ console.log(
     ? `Manifest: ${configured}/manifest.xml`
     : `Manifest: ${getPublicBaseUrl()}/manifest.xml (local default)`,
 );
-console.log(`Starting on http://0.0.0.0:${port}`);
 
 const require = createRequire(import.meta.url);
 const nextCli = require.resolve("next/dist/bin/next");
+const mode = hasBuild ? "start" : "dev";
+
+if (!hasBuild) {
+  console.log("No production build (.next) yet — starting development server.");
+  console.log("For a production server later:  npm run build   then   npm start");
+}
+
+console.log(`Open http://localhost:${port}`);
 
 const child = spawn(
   process.execPath,
-  [nextCli, "start", "--hostname", "0.0.0.0", "-p", String(port)],
+  [nextCli, mode, "--hostname", "0.0.0.0", "--port", String(port)],
   { stdio: "inherit", cwd: root, env: process.env },
 );
 

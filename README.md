@@ -16,23 +16,29 @@ The home page embeds an **Outlook-style simulator** (`/simulator.html`) so you c
 
 ## Run locally
 
-From the repo folder (`C:\Users\shish\source\repos\fwd-assist` on Windows):
+From the repo folder:
 
-**Daily development** (does not need `npm start`):
-
-```bash
+```powershell
+cd C:\Users\shish\source\repos\fwd-assist
 npm install
-npm run dev
+npm start
 ```
 
 Open http://localhost:43123
 
-**Production mode** (`npm start` only works after a build):
+`npm start` runs the **dev** server if you have not built yet. After `npm run build`, it runs **production** (`next start`).
 
-```bash
+You do not need to type `next start --hostname 0.0.0.0 --port 43123` yourself. That line is Next.js starting. If it then says it cannot find a production build, use:
+
+```powershell
 npm install
-npm run build
 npm start
+```
+
+or:
+
+```powershell
+npm run dev
 ```
 
 On Windows, use **PowerShell** or **Command Prompt** in that folder. If `npm` is not found, install [Node.js LTS](https://nodejs.org/) and reopen the terminal.
