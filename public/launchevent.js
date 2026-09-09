@@ -12,7 +12,7 @@ function completeBlock(event) {
   event.completed({
     allowEvent: false,
     errorMessage:
-      "This is a forwarded email. Choose Classify forward, fill Priority, End Date, and Category, then send again.",
+      "This is a forwarded email. Open Apps, choose Forward Guard, fill Priority, End Date, and Category, then send again.",
     cancelLabel: "Don't Send",
     commandId: "msgComposeOpenPaneButton",
   });
@@ -30,7 +30,7 @@ function blockSend(item, event) {
         {
           type: "errorMessage",
           message:
-            "Forwarded email: open Classify forward (ribbon) and complete Priority, End Date, and Category.",
+            "Forwarded email: open Apps → Forward Guard, then fill Priority, End Date, and Category.",
         },
         function () {}
       );
