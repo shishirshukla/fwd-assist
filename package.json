@@ -3,7 +3,7 @@
   "version": "0.1.0",
   "private": true,
   "scripts": {
-    "dev": "next dev --hostname 0.0.0.0 --port 43123",
+    "dev": "node scripts/dev.mjs",
     "build": "next build",
     "start": "node scripts/start.mjs",
     "manifest:url": "node scripts/set-manifest-url.mjs",

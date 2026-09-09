@@ -16,11 +16,31 @@ The home page embeds an **Outlook-style simulator** (`/simulator.html`) so you c
 
 ## Run locally
 
-From the repo folder:
+## Run locally (WSL)
 
-```powershell
-cd C:\Users\shish\source\repos\fwd-assist
+Put the repo on the **Linux filesystem**, not under `/mnt/c`. Next.js often hangs with no extra output when the project is on the Windows drive.
+
+```bash
+# Copy off /mnt/c (adjust the source if your clone is elsewhere)
+mkdir -p ~/src
+cp -a /mnt/c/Users/HP/fwd-assist ~/src/fwd-assist
+cd ~/src/fwd-assist
+
+git pull
 npm install
+npm start
+```
+
+Wait until you see **Ready** or **Local:** then open http://127.0.0.1:43123
+
+The first compile can take a minute. If it still sits forever on `next dev --hostname ...`, you are almost certainly on `/mnt/c` — use `~/src/fwd-assist` as above.
+
+If port 43123 is already taken:
+
+```bash
+ss -ltnp | grep 43123
+# or
+npx kill-port 43123
 npm start
 ```
 
@@ -46,7 +66,7 @@ On Windows, use **PowerShell** or **Command Prompt** in that folder. If `npm` is
 | Error | Cause | Fix |
 | --- | --- | --- |
 | `next` / `Cannot find module` | Dependencies missing | `npm install` |
-| `No production build found` | `.next` missing | `npm run build` then `npm start` |
+| `Could not find a production build` | `next start` without `.next` | Pull latest, then `npm install` and `npm start` (falls back to `npm run dev`) |
 | `EADDRINUSE` / port in use | Another process on 43123 | Stop the other server, or `npm run dev` |
 | `${PORT:-43123}` as a port | Old start script on Windows | Pull latest `main` (start is now `node scripts/start.mjs`) |
 
