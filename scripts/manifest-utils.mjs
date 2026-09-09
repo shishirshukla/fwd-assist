@@ -75,9 +75,9 @@ export function assertManifestConfigured() {
   }
 
   if (!resolvePublicBaseUrl()) {
-    throw new Error(
-      "Set PUBLIC_BASE_URL (recommended) or enable a public Railway domain before starting. " +
-        "Example: PUBLIC_BASE_URL=https://your-app.up.railway.app",
+    console.warn(
+      "PUBLIC_BASE_URL is not set. Manifest URLs will fall back to localhost. " +
+        "Set PUBLIC_BASE_URL=https://your-app.up.railway.app in Railway Variables.",
     );
   }
 }
