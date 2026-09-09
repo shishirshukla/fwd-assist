@@ -89,6 +89,17 @@ Quick steps:
 5. **Redeploy** — open `https://YOUR-APP.up.railway.app/api/deploy-info` and confirm `configuredBaseUrl` matches your Railway domain.
 6. Download `https://YOUR-APP.up.railway.app/manifest.xml` and sideload in Outlook Web.
 
+### Open the form in Outlook on the web
+
+Outlook on the web **does not** put **Classify forward** on the main compose ribbon (Attach, Link, etc.). Add-in commands are under **Apps**.
+
+1. In the compose window, click **Apps** (or **More apps** / the app-grid icon).
+2. Select **Forward Guard**.
+3. Fill **Priority**, **End Date**, **Category** → **Save classification**.
+4. Optional: in **Apps**, pin **Forward Guard** so it stays on the toolbar.
+
+Classic Outlook on Windows can show the button on the ribbon; Outlook on the web and new Outlook keep it in **Apps**.
+
 Every push to `main` triggers a new Railway deploy automatically.
 
 ## Test in Outlook on the web (local + ngrok)
