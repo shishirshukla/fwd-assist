@@ -16,19 +16,33 @@ The home page embeds an **Outlook-style simulator** (`/simulator.html`) so you c
 
 ## Run locally
 
+From the repo folder (`C:\Users\shish\source\repos\fwd-assist` on Windows):
+
+**Daily development** (does not need `npm start`):
+
 ```bash
 npm install
 npm run dev
 ```
 
-Or a production build:
+Open http://localhost:43123
+
+**Production mode** (`npm start` only works after a build):
 
 ```bash
+npm install
 npm run build
 npm start
 ```
 
-Open [http://localhost:43123](http://localhost:43123).
+On Windows, use **PowerShell** or **Command Prompt** in that folder. If `npm` is not found, install [Node.js LTS](https://nodejs.org/) and reopen the terminal.
+
+| Error | Cause | Fix |
+| --- | --- | --- |
+| `next` / `Cannot find module` | Dependencies missing | `npm install` |
+| `No production build found` | `.next` missing | `npm run build` then `npm start` |
+| `EADDRINUSE` / port in use | Another process on 43123 | Stop the other server, or `npm run dev` |
+| `${PORT:-43123}` as a port | Old start script on Windows | Pull latest `main` (start is now `node scripts/start.mjs`) |
 
 - Simulator: `/` or `/simulator.html`
 - Outlook task pane: `/taskpane.html`
