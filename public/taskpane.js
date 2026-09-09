@@ -1,4 +1,6 @@
 (function () {
+  var outlookReady = false;
+
   function todayIso() {
     var now = new Date();
     var month = String(now.getMonth() + 1).padStart(2, "0");
@@ -18,28 +20,13 @@
     );
   }
 
-  function inOutlook() {
-    return /[?&]_host_Info=/i.test(window.location.search);
-  }
-
-  function loadOfficeJs(callback) {
-    if (window.Office) {
-      callback();
-      return;
-    }
-    var script = document.createElement("script");
-    script.src = "https://appsforoffice.microsoft.com/lib/1/hosted/office.js";
-    script.onload = callback;
-    script.onerror = function () {
-      document.getElementById("status").hidden = false;
-      document.getElementById("status").textContent =
-        "Office.js could not be loaded.";
-    };
-    document.head.appendChild(script);
-  }
-
   function setError(id, message) {
     document.getElementById(id + "-error").textContent = message || "";
+  }
+
+  function setStatus(message) {
+    document.getElementById("status").hidden = false;
+    document.getElementById("status").textContent = message;
   }
 
   var endDateInput = document.getElementById("endDate");
@@ -51,9 +38,7 @@
     item.loadCustomPropertiesAsync(function (propResult) {
       if (propResult.status !== Office.AsyncResultStatus.Succeeded) {
         saveButton.disabled = false;
-        document.getElementById("status").hidden = false;
-        document.getElementById("status").textContent =
-          "Could not save classification on this message.";
+        setStatus("Could not save classification on this message.");
         return;
       }
 
@@ -65,9 +50,7 @@
       props.saveAsync(function (saveResult) {
         if (saveResult.status !== Office.AsyncResultStatus.Succeeded) {
           saveButton.disabled = false;
-          document.getElementById("status").hidden = false;
-          document.getElementById("status").textContent =
-            "Could not persist classification. Try again.";
+          setStatus("Could not persist classification. Try again.");
           return;
         }
 
@@ -82,10 +65,11 @@
                 "X-Forward-Category": category,
               });
             }
+            try {
+              item.notificationMessages.removeAsync("ForwardGuardNotice");
+            } catch (ignore) {}
             document.getElementById("form").hidden = true;
-            document.getElementById("status").hidden = false;
-            document.getElementById("status").textContent =
-              "Classification saved. You can send this forwarded message now.";
+            setStatus("Classification saved. You can send this forwarded message now.");
           }
         );
       });
@@ -124,22 +108,18 @@
 
     document.getElementById("save").disabled = true;
 
-    if (!inOutlook() || !window.Office) {
-      document.getElementById("form").hidden = true;
-      document.getElementById("status").hidden = false;
-      document.getElementById("status").textContent =
-        "Classification saved. You can send this forwarded message now.";
+    if (outlookReady && window.Office && Office.context && Office.context.mailbox) {
+      persistInOutlook(priority, endDate, category);
       return;
     }
 
-    persistInOutlook(priority, endDate, category);
+    document.getElementById("form").hidden = true;
+    setStatus("Classification saved. You can send this forwarded message now.");
   });
 
-  if (inOutlook()) {
-    loadOfficeJs(function () {
-      if (window.Office && Office.onReady) {
-        Office.onReady(function () {});
-      }
+  if (window.Office && Office.onReady) {
+    Office.onReady(function (info) {
+      outlookReady = info && info.host === Office.HostType.Outlook;
     });
   }
 })();

@@ -1,4 +1,4 @@
-/* Office event runtime — no DOM. Loaded by Outlook OnMessageSend / ItemSend. */
+/* Office event runtime — no DOM. Loaded by Outlook OnMessageSend. */
 
 function isForwardedSubject(subject) {
   return /^(fw|fwd)\s*:/i.test((subject || "").trim());
@@ -8,14 +8,43 @@ function allowSend(event) {
   event.completed({ allowEvent: true });
 }
 
-function blockSend(event) {
+function completeBlock(event) {
   event.completed({
     allowEvent: false,
     errorMessage:
-      "This is a forwarded email. Complete Priority, End Date, and Category, then send again.",
+      "This is a forwarded email. Choose Classify forward, fill Priority, End Date, and Category, then send again.",
     cancelLabel: "Don't Send",
     commandId: "msgComposeOpenPaneButton",
   });
+}
+
+function blockSend(item, event) {
+  function finish() {
+    completeBlock(event);
+  }
+
+  try {
+    if (item.notificationMessages && item.notificationMessages.replaceAsync) {
+      item.notificationMessages.replaceAsync(
+        "ForwardGuardNotice",
+        {
+          type: "errorMessage",
+          message:
+            "Forwarded email: open Classify forward (ribbon) and complete Priority, End Date, and Category.",
+        },
+        function () {}
+      );
+    }
+  } catch (ignore) {}
+
+  try {
+    if (Office.addin && typeof Office.addin.showAsTaskpane === "function") {
+      Office.addin.showAsTaskpane().then(finish, finish);
+      return;
+    }
+  } catch (ignore) {}
+
+  finish();
 }
 
 function metadataIsComplete(customProps) {
@@ -30,7 +59,7 @@ function checkCustomPropertiesThenDecide(item, event) {
         return;
       }
     }
-    blockSend(event);
+    blockSend(item, event);
   });
 }
 
