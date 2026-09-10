@@ -106,5 +106,5 @@ If `manifest.xml` still shows `localhost`, `PUBLIC_BASE_URL` is not set or the r
 | --- | --- |
 | Build failed / exit 240 | Railway skipped Tailwind (`devDependencies`) because `NODE_ENV=production`. Current `main` uses `npm ci --include=dev`. Redeploy. |
 | `Cannot find module '@tailwindcss/postcss'` | Same as above — pull latest and redeploy |
-| Send blocked but no form | Outlook on the web does **not** put **Classify forward** on the main compose ribbon. Open **Apps** (sometimes **More apps**) on the compose toolbar, then **Forward Guard**. Pin it for next time. |
+| Send blocked but sidebar stays closed | Outlook Web never auto-opens the task pane on Send. Click **Open form** (or **Take Action**) on the Send dialog. **Don't Send** only dismisses the alert. |
 

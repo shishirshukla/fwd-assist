@@ -120,6 +120,13 @@
   if (window.Office && Office.onReady) {
     Office.onReady(function (info) {
       outlookReady = info && info.host === Office.HostType.Outlook;
+      if (!outlookReady || !Office.context || !Office.context.mailbox) {
+        return;
+      }
+      var item = Office.context.mailbox.item;
+      if (item && item.getInitializationContextAsync) {
+        item.getInitializationContextAsync(function () {});
+      }
     });
   }
 })();
