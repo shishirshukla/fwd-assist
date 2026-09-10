@@ -1,4 +1,5 @@
-/* Office event runtime — no DOM. Loaded by Outlook OnMessageSend. */
+/* Office event runtime. Outlook on the web cannot auto-open a task pane from Send.
+   Smart Alerts must offer Take Action (commandId + cancelLabel) to open the pane. */
 
 function isForwardedSubject(subject) {
   return /^(fw|fwd)\s*:/i.test((subject || "").trim());
@@ -8,21 +9,7 @@ function allowSend(event) {
   event.completed({ allowEvent: true });
 }
 
-function completeBlock(event) {
-  event.completed({
-    allowEvent: false,
-    errorMessage:
-      "This is a forwarded email. Open Apps, choose Forward Guard, fill Priority, End Date, and Category, then send again.",
-    cancelLabel: "Don't Send",
-    commandId: "msgComposeOpenPaneButton",
-  });
-}
-
 function blockSend(item, event) {
-  function finish() {
-    completeBlock(event);
-  }
-
   try {
     if (item.notificationMessages && item.notificationMessages.replaceAsync) {
       item.notificationMessages.replaceAsync(
@@ -30,21 +17,23 @@ function blockSend(item, event) {
         {
           type: "errorMessage",
           message:
-            "Forwarded email: open Apps → Forward Guard, then fill Priority, End Date, and Category.",
+            "Forwarded email: in the Send dialog choose Open form, then fill Priority, End Date, and Category.",
         },
         function () {}
       );
     }
   } catch (ignore) {}
 
-  try {
-    if (Office.addin && typeof Office.addin.showAsTaskpane === "function") {
-      Office.addin.showAsTaskpane().then(finish, finish);
-      return;
-    }
-  } catch (ignore) {}
-
-  finish();
+  event.completed({
+    allowEvent: false,
+    errorMessage:
+      "This is a forwarded email. Select Open form, complete Priority, End Date, and Category, then send again.",
+    errorMessageMarkdown:
+      "This is a **forwarded email**.\n\nSelect **Open form**, fill Priority, End Date, and Category, then send again.",
+    cancelLabel: "Open form",
+    commandId: "msgComposeOpenPaneButton",
+    contextData: JSON.stringify({ reason: "forward-classification" }),
+  });
 }
 
 function metadataIsComplete(customProps) {

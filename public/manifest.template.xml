@@ -6,7 +6,7 @@
   xmlns:mailappor="http://schemas.microsoft.com/office/mailappversionoverrides/1.0"
   xsi:type="MailApp">
   <Id>8c3d6a12-9f41-4b6e-a2d8-71e04c9f1b22</Id>
-  <Version>1.0.2.0</Version>
+  <Version>1.0.3.0</Version>
   <ProviderName>Forward Guard</ProviderName>
   <DefaultLocale>en-US</DefaultLocale>
   <DisplayName DefaultValue="Forward Guard" />
@@ -94,7 +94,7 @@
 
     <VersionOverrides xmlns="http://schemas.microsoft.com/office/mailappversionoverrides/1.1" xsi:type="VersionOverridesV1_1">
       <Requirements>
-        <bt:Sets DefaultMinVersion="1.12">
+        <bt:Sets DefaultMinVersion="1.14">
           <bt:Set Name="Mailbox" />
         </bt:Sets>
       </Requirements>
