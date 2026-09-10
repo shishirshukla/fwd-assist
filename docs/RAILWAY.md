@@ -38,6 +38,8 @@ In Railway → **Variables**:
 | Variable | Value | Required |
 | --- | --- | --- |
 | `PUBLIC_BASE_URL` | `https://fwd-assist-production.up.railway.app` | **Yes** — use your exact HTTPS URL |
+| `CAPTURE_PUSH_URL` | External API that should receive each capture | No — leave unset until you have the endpoint |
+| `CAPTURE_PUSH_TOKEN` | Bearer token for `CAPTURE_PUSH_URL` | No |
 
 Railway also sets `RAILWAY_PUBLIC_DOMAIN` at **runtime** as a fallback, but `PUBLIC_BASE_URL` is more reliable (especially with custom domains).
 
@@ -66,7 +68,8 @@ If `PUBLIC_BASE_URL` is missing on Railway, the app **fails to start** with a cl
 | `https://YOUR-APP.up.railway.app/api/deploy-info` | JSON with `configuredBaseUrl` = your Railway URL |
 | `https://YOUR-APP.up.railway.app/manifest.xml` | XML where every URL uses your Railway domain (not `localhost`) |
 | `https://YOUR-APP.up.railway.app/taskpane.html` | Classification form |
-| `https://YOUR-APP.up.railway.app/icons/icon-64.png` | Icon image |
+| `https://YOUR-APP.up.railway.app/api/captures` | JSON list of stored forward captures |
+| `https://YOUR-APP.up.railway.app/captures` | Human-readable capture log |
 
 ### Quick check
 

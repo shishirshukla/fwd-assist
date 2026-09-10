@@ -96,6 +96,24 @@ declare global {
           callback?: (result: AsyncResult<void>) => void,
         ): void;
       };
+      to?: {
+        getAsync(
+          callback: (result: AsyncResult<{ displayName?: string; emailAddress?: string }[]>) => void,
+        ): void;
+      };
+      cc?: {
+        getAsync(
+          callback: (result: AsyncResult<{ displayName?: string; emailAddress?: string }[]>) => void,
+        ): void;
+      };
+      from?: {
+        getAsync(
+          callback: (
+            result: AsyncResult<{ displayName?: string; emailAddress?: string }>,
+          ) => void,
+        ): void;
+      };
+      dateTimeCreated?: string | Date;
     }
 
     interface OnSendEvent {

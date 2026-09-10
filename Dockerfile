@@ -6,6 +6,7 @@ COPY package.json package-lock.json ./
 RUN npm ci --include=dev
 
 COPY . .
+RUN mkdir -p /app/data && chmod 777 /app/data
 RUN npm run build
 
 ENV NODE_ENV=production

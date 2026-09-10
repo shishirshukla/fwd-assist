@@ -10,7 +10,7 @@ Office add-in for Outlook on the web. It runs when the user clicks **Send**, che
    - the subject starts with `FW:` / `Fwd:`
 3. If it is not a forward, send continues.
 4. If it is a forward and classification is missing, send is cancelled and Outlook can open the **Classify forward** task pane (`/taskpane`).
-5. Saving the form writes custom properties (and optional internet headers) on the item. The next Send is allowed.
+5. Saving the form writes custom properties, posts the original message details to `POST /api/captures` (stored in a text file), then sends the mail.
 
 The home page embeds an **Outlook-style simulator** (`/simulator.html`) so you can try the same flow in a browser without sideloading.
 
@@ -71,8 +71,33 @@ On Windows, use **PowerShell** or **Command Prompt** in that folder. If `npm` is
 | `${PORT:-43123}` as a port | Old start script on Windows | Pull latest `main` (start is now `node scripts/start.mjs`) |
 
 - Simulator: `/` or `/simulator.html`
+- Stored captures: `/captures` and `GET /api/captures`
 - Outlook task pane: `/taskpane.html`
 - Manifest (dynamic): `/manifest.xml` (generated from `public/manifest.template.xml`)
+
+## Capture API
+
+When a forwarded message is classified, the add-in (and the simulator) `POST` this payload to **`/api/captures`**:
+
+- Original Email Date
+- Sender Email ID
+- Sender Name
+- Subject
+- Message Body
+- TO Email addresses
+- CC Email addresses
+
+Records are appended to **`data/forward-captures.txt`**. Later, set these environment variables to also push each record to an external API:
+
+| Variable | Purpose |
+| --- | --- |
+| `CAPTURE_PUSH_URL` | Optional HTTPS endpoint that accepts the same JSON |
+| `CAPTURE_PUSH_TOKEN` | Optional `Bearer` token for that endpoint |
+| `CAPTURE_FILE_PATH` | Optional override for the local text file path |
+
+```bash
+curl -s http://127.0.0.1:43123/api/captures
+```
 
 ## Deploy on Railway (recommended — no ngrok)
 
@@ -93,7 +118,7 @@ Quick steps:
 
 Outlook on the web **cannot auto-open** the sidebar from the Send event. The add-in must not call dialog or task-pane APIs from `OnMessageSend` — that breaks later opens.
 
-1. After a version bump (now **1.0.5.0**), **remove** Forward Guard and sideload `manifest.xml` again.
+1. After a version bump (now **1.0.6.0**), **remove** Forward Guard and sideload `manifest.xml` again.
 2. Forward a message → **Send**.
 3. In the alert, click **Open form** (Outlook may label it **Take Action**).
 4. Or click **Open form** on the message infobar, or **Apps** → **Forward Guard**.
@@ -221,7 +246,9 @@ Outlook add-ins must be served over **HTTPS**. Point every `https://localhost:43
 | `public/launchevent.js` | Send intercept (no DOM; Office event runtime) |
 | `public/commands.html` | Command / runtime HTML host |
 | `public/taskpane.html` | Classification form hosted in Outlook |
+| `public/capture.js` | Collects sender/date/body/TO/CC and POSTs `/api/captures` |
 | `public/simulator.html` | Browser simulator of the Send flow |
+| `app/api/captures/route.ts` | Stores captures in `data/forward-captures.txt` |
 | `scripts/set-manifest-url.mjs` | Rewrite manifest URLs for your HTTPS tunnel |
 | `scripts/inject-manifest-url.mjs` | Inject Railway/production URLs at build time |
 | `docs/RAILWAY.md` | Deploy from GitHub to Railway (no ngrok) |

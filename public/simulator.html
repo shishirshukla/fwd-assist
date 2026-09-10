@@ -154,6 +154,7 @@
     <header>
       Forward Guard
       <span class="sub">Outlook Web add-in preview</span>
+      <a href="/captures" target="_parent" style="margin-left:auto;color:#fff;font-weight:500;font-size:13px;">Captures</a>
     </header>
     <div class="shell">
       <nav>
@@ -179,6 +180,10 @@
             <label class="field">
               <span>To</span>
               <input id="to" placeholder="Add recipients" value="legal@contoso.com" autocomplete="off" />
+            </label>
+            <label class="field">
+              <span>Cc</span>
+              <input id="cc" placeholder="Add Cc" value="records@contoso.com" autocomplete="off" />
             </label>
             <label class="field">
               <span>Subject</span>
@@ -225,6 +230,7 @@
         </div>
       </main>
     </div>
+    <script src="capture.js"></script>
     <script>
       const ORIGINAL = `---------- Forwarded message ---------
 From: Alex Chen <alex.chen@contoso.com>
@@ -241,6 +247,7 @@ Please review the attached vendor terms before Friday.`;
 
       const els = {
         to: document.getElementById("to"),
+        cc: document.getElementById("cc"),
         subject: document.getElementById("subject"),
         body: document.getElementById("body"),
         status: document.getElementById("status"),
@@ -283,6 +290,7 @@ Please review the attached vendor terms before Friday.`;
         state.mode = "forward";
         state.classification = null;
         els.to.value = "legal@contoso.com";
+        els.cc.value = "records@contoso.com";
         els.subject.value = "FW: Q3 vendor contract";
         els.body.value = "Hi Legal,\n\nPassing this along for review.\n\n" + ORIGINAL;
         els.formPane.classList.add("hidden");
@@ -296,6 +304,7 @@ Please review the attached vendor terms before Friday.`;
         state.mode = "new";
         state.classification = null;
         els.to.value = "";
+        els.cc.value = "";
         els.subject.value = "";
         els.body.value = "";
         els.formPane.classList.add("hidden");
@@ -361,14 +370,39 @@ Please review the attached vendor terms before Friday.`;
         if (!valid) return;
 
         state.classification = { priority, endDate, category };
-        const line = "[Forward classification: Priority=" + priority + " | End Date=" + endDate + " | Category=" + category + "]";
-        if (!els.body.value.includes("[Forward classification:")) {
-          els.body.value = line + "\n\n" + els.body.value;
+        const parsed = window.ForwardGuardCapture
+          ? ForwardGuardCapture.parseOriginalFromBody(els.body.value)
+          : { originalEmailDate: "", senderName: "", senderEmailId: "" };
+
+        function finishSend() {
+          const line = "[Forward classification: Priority=" + priority + " | End Date=" + endDate + " | Category=" + category + "]";
+          if (!els.body.value.includes("[Forward classification:")) {
+            els.body.value = line + "\n\n" + els.body.value;
+          }
+          els.priority.value = "";
+          els.endDate.value = "";
+          els.category.value = "";
+          send();
         }
-        els.priority.value = "";
-        els.endDate.value = "";
-        els.category.value = "";
-        send();
+
+        if (window.ForwardGuardCapture) {
+          ForwardGuardCapture.post(
+            {
+              originalEmailDate: parsed.originalEmailDate,
+              senderEmailId: parsed.senderEmailId,
+              senderName: parsed.senderName,
+              subject: els.subject.value,
+              messageBody: els.body.value,
+              toEmailAddresses: ForwardGuardCapture.splitAddresses(els.to.value),
+              ccEmailAddresses: ForwardGuardCapture.splitAddresses(els.cc.value),
+              classification: state.classification,
+            },
+            finishSend,
+          );
+          return;
+        }
+
+        finishSend();
       });
 
       loadForward();

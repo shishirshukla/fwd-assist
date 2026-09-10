@@ -100,56 +100,73 @@
       return;
     }
 
-    item.loadCustomPropertiesAsync(function (propResult) {
-      if (propResult.status !== Office.AsyncResultStatus.Succeeded) {
-        enableSave();
-        setStatus("Could not save classification on this message.");
-        return;
-      }
+    var classification = {
+      priority: priority,
+      endDate: endDate,
+      category: category,
+    };
 
-      var props = propResult.value;
-      props.set("forwardMetadataComplete", "true");
-      props.set("forwardPriority", priority);
-      props.set("forwardEndDate", endDate);
-      props.set("forwardCategory", category);
-      props.saveAsync(function (saveResult) {
-        if (saveResult.status !== Office.AsyncResultStatus.Succeeded) {
+    function saveClassification() {
+      item.loadCustomPropertiesAsync(function (propResult) {
+        if (propResult.status !== Office.AsyncResultStatus.Succeeded) {
           enableSave();
-          setStatus("Could not persist classification. Try again.");
+          setStatus("Could not save classification on this message.");
           return;
         }
 
-        setSessionComplete(item, function () {
-          item.body.prependAsync(
-            "<p>" + classificationLine(priority, endDate, category) + "</p>",
-            { coercionType: Office.CoercionType.Html },
-            function () {
-              function finish() {
-                try {
-                  item.notificationMessages.removeAsync("ForwardGuardNotice");
-                } catch (ignore) {}
-                continueAfterSave(priority, endDate, category);
-              }
+        var props = propResult.value;
+        props.set("forwardMetadataComplete", "true");
+        props.set("forwardPriority", priority);
+        props.set("forwardEndDate", endDate);
+        props.set("forwardCategory", category);
+        props.saveAsync(function (saveResult) {
+          if (saveResult.status !== Office.AsyncResultStatus.Succeeded) {
+            enableSave();
+            setStatus("Could not persist classification. Try again.");
+            return;
+          }
 
-              if (item.internetHeaders && item.internetHeaders.setAsync) {
-                item.internetHeaders.setAsync(
-                  {
-                    "X-Forward-Priority": priority,
-                    "X-Forward-End-Date": endDate,
-                    "X-Forward-Category": category,
-                  },
-                  function () {
-                    finish();
-                  }
-                );
-                return;
+          setSessionComplete(item, function () {
+            item.body.prependAsync(
+              "<p>" + classificationLine(priority, endDate, category) + "</p>",
+              { coercionType: Office.CoercionType.Html },
+              function () {
+                function finish() {
+                  try {
+                    item.notificationMessages.removeAsync("ForwardGuardNotice");
+                  } catch (ignore) {}
+                  continueAfterSave(priority, endDate, category);
+                }
+
+                if (item.internetHeaders && item.internetHeaders.setAsync) {
+                  item.internetHeaders.setAsync(
+                    {
+                      "X-Forward-Priority": priority,
+                      "X-Forward-End-Date": endDate,
+                      "X-Forward-Category": category,
+                    },
+                    function () {
+                      finish();
+                    }
+                  );
+                  return;
+                }
+                finish();
               }
-              finish();
-            }
-          );
+            );
+          });
         });
       });
-    });
+    }
+
+    if (window.ForwardGuardCapture && ForwardGuardCapture.collectFromOutlook) {
+      ForwardGuardCapture.collectFromOutlook(item, classification, function (payload) {
+        ForwardGuardCapture.post(payload, saveClassification);
+      });
+      return;
+    }
+
+    saveClassification();
   }
 
   document.getElementById("form").addEventListener("submit", function (event) {
