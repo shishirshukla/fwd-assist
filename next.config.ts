@@ -23,6 +23,7 @@ const nextConfig: NextConfig = {
       { source: "/api/deploy-info", headers: addInHeaders },
       { source: "/launchevent.js", headers: addInHeaders },
       { source: "/commands.html", headers: addInHeaders },
+      { source: "/commands.js", headers: addInHeaders },
       { source: "/taskpane.html", headers: addInHeaders },
       { source: "/taskpane.js", headers: addInHeaders },
       { source: "/simulator.html", headers: addInHeaders },

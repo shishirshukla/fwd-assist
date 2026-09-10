@@ -91,13 +91,13 @@ Quick steps:
 
 ### Open the form after Send is blocked
 
-Outlook on the web **cannot auto-open** the sidebar from the Send event. The Send dialog includes **Open form** (or **Take Action**). Click that to open the pane.
+Outlook on the web **cannot auto-open** the sidebar from the Send event. The add-in must not call dialog or task-pane APIs from `OnMessageSend` — that breaks later opens.
 
-1. Forward a message → **Send**.
-2. In the alert, click **Open form** (not only Don't Send).
-3. Fill the three fields → **Save classification** → **Send** again.
-
-You can also open **Apps** → **Forward Guard** at any time.
+1. After a version bump (now **1.0.4.0**), **remove** Forward Guard and sideload `manifest.xml` again.
+2. Forward a message → **Send**.
+3. In the alert, click **Open form** (Outlook may label it **Take Action**).
+4. Or click **Open form** on the message infobar, or **Apps** → **Forward Guard**.
+5. Fill the three fields → **Save classification** → **Send** again.
 
 Every push to `main` triggers a new Railway deploy automatically.
 
