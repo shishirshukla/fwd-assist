@@ -93,11 +93,11 @@ Quick steps:
 
 Outlook on the web **cannot auto-open** the sidebar from the Send event. The add-in must not call dialog or task-pane APIs from `OnMessageSend` — that breaks later opens.
 
-1. After a version bump (now **1.0.4.0**), **remove** Forward Guard and sideload `manifest.xml` again.
+1. After a version bump (now **1.0.5.0**), **remove** Forward Guard and sideload `manifest.xml` again.
 2. Forward a message → **Send**.
 3. In the alert, click **Open form** (Outlook may label it **Take Action**).
 4. Or click **Open form** on the message infobar, or **Apps** → **Forward Guard**.
-5. Fill the three fields → **Save classification** → **Send** again.
+5. Fill the three fields → **Save and send**. Outlook should send the message immediately.
 
 Every push to `main` triggers a new Railway deploy automatically.
 
@@ -154,11 +154,11 @@ Quick sanity check in a browser:
 | Step | Action | Expected result |
 | --- | --- | --- |
 | 1 | Forward a message, click **Send** | Send is blocked; Outlook may show a notification and open the task pane |
-| 2 | Fill **Priority**, **End Date**, **Category** → **Save classification** | Success message in the pane |
-| 3 | Click **Send** again | Message sends |
+| 2 | Fill **Priority**, **End Date**, **Category** → **Save and send** | Message is classified and sent |
+| 3 | If the compose window is still open | Click **Send** once more (Outlook will allow it) |
 | 4 | Send a **new** (non-forward) message | Sends immediately — no form |
 
-If Send is not blocked on a forward, open **Classify forward** manually from the ribbon, save the form, then try Send again.
+If Send is not blocked on a forward, open **Classify forward** from Apps, save the form (that also sends).
 
 ### Requirements and troubleshooting
 
@@ -206,7 +206,7 @@ Outlook add-ins must be served over **HTTPS**. Point every `https://localhost:43
 1. In Outlook on the web, open a message compose window.
 2. Go to **Get add-ins** → **My add-ins** → **Add a custom add-in** → **Add from file**.
 3. Upload `public/manifest.xml`.
-4. Compose a **Forward**, click **Send**, complete the three fields, then send again.
+4. Compose a **Forward**, click **Send**, complete the three fields, then **Save and send**.
 
 ### Tenant notes
 

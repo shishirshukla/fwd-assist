@@ -76,6 +76,20 @@ declare global {
       loadCustomPropertiesAsync(
         callback: (result: AsyncResult<CustomProperties>) => void,
       ): void;
+      sendAsync?(
+        callback?: (result: AsyncResult<void>) => void,
+      ): void;
+      sessionData?: {
+        getAsync(
+          name: string,
+          callback: (result: AsyncResult<string>) => void,
+        ): void;
+        setAsync(
+          name: string,
+          value: string,
+          callback?: (result: AsyncResult<void>) => void,
+        ): void;
+      };
       internetHeaders: {
         setAsync(
           headers: Record<string, string>,

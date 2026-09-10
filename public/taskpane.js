@@ -29,15 +29,80 @@
     document.getElementById("status").textContent = message;
   }
 
+  function enableSave() {
+    document.getElementById("save").disabled = false;
+  }
+
+  function tryMessageParent(payload) {
+    try {
+      if (Office.context && Office.context.ui && typeof Office.context.ui.messageParent === "function") {
+        Office.context.ui.messageParent(JSON.stringify(payload));
+        return true;
+      }
+    } catch (ignore) {}
+    return false;
+  }
+
+  function setSessionComplete(item, callback) {
+    if (item.sessionData && typeof item.sessionData.setAsync === "function") {
+      item.sessionData.setAsync("forwardMetadataComplete", "true", function () {
+        callback();
+      });
+      return;
+    }
+    callback();
+  }
+
+  function sendComposeItem() {
+    var item = Office.context.mailbox.item;
+    if (!item || typeof item.sendAsync !== "function") {
+      setStatus("Classification saved. Click Send to send the message.");
+      enableSave();
+      return;
+    }
+
+    item.sendAsync(function (sendResult) {
+      if (sendResult.status === Office.AsyncResultStatus.Succeeded) {
+        setStatus("Classification saved. Message sent.");
+        return;
+      }
+      var detail =
+        sendResult.error && sendResult.error.message
+          ? sendResult.error.message
+          : "Click Send to send the message.";
+      setStatus("Classification saved. " + detail);
+      enableSave();
+    });
+  }
+
+  function continueAfterSave(priority, endDate, category) {
+    document.getElementById("form").hidden = true;
+    var handedOff = tryMessageParent({
+      action: "classificationSaved",
+      priority: priority,
+      endDate: endDate,
+      category: category,
+    });
+    if (handedOff) {
+      setStatus("Classification saved. Sending…");
+      return;
+    }
+    sendComposeItem();
+  }
+
   var endDateInput = document.getElementById("endDate");
   endDateInput.min = todayIso();
 
   function persistInOutlook(priority, endDate, category) {
     var item = Office.context.mailbox.item;
-    var saveButton = document.getElementById("save");
+    if (!item) {
+      continueAfterSave(priority, endDate, category);
+      return;
+    }
+
     item.loadCustomPropertiesAsync(function (propResult) {
       if (propResult.status !== Office.AsyncResultStatus.Succeeded) {
-        saveButton.disabled = false;
+        enableSave();
         setStatus("Could not save classification on this message.");
         return;
       }
@@ -49,29 +114,40 @@
       props.set("forwardCategory", category);
       props.saveAsync(function (saveResult) {
         if (saveResult.status !== Office.AsyncResultStatus.Succeeded) {
-          saveButton.disabled = false;
+          enableSave();
           setStatus("Could not persist classification. Try again.");
           return;
         }
 
-        item.body.prependAsync(
-          "<p>" + classificationLine(priority, endDate, category) + "</p>",
-          { coercionType: Office.CoercionType.Html },
-          function () {
-            if (item.internetHeaders && item.internetHeaders.setAsync) {
-              item.internetHeaders.setAsync({
-                "X-Forward-Priority": priority,
-                "X-Forward-End-Date": endDate,
-                "X-Forward-Category": category,
-              });
+        setSessionComplete(item, function () {
+          item.body.prependAsync(
+            "<p>" + classificationLine(priority, endDate, category) + "</p>",
+            { coercionType: Office.CoercionType.Html },
+            function () {
+              function finish() {
+                try {
+                  item.notificationMessages.removeAsync("ForwardGuardNotice");
+                } catch (ignore) {}
+                continueAfterSave(priority, endDate, category);
+              }
+
+              if (item.internetHeaders && item.internetHeaders.setAsync) {
+                item.internetHeaders.setAsync(
+                  {
+                    "X-Forward-Priority": priority,
+                    "X-Forward-End-Date": endDate,
+                    "X-Forward-Category": category,
+                  },
+                  function () {
+                    finish();
+                  }
+                );
+                return;
+              }
+              finish();
             }
-            try {
-              item.notificationMessages.removeAsync("ForwardGuardNotice");
-            } catch (ignore) {}
-            document.getElementById("form").hidden = true;
-            setStatus("Classification saved. You can send this forwarded message now.");
-          }
-        );
+          );
+        });
       });
     });
   }
@@ -114,7 +190,7 @@
     }
 
     document.getElementById("form").hidden = true;
-    setStatus("Classification saved. You can send this forwarded message now.");
+    setStatus("Classification saved. Message sent.");
   });
 
   if (window.Office && Office.onReady) {

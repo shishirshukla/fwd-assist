@@ -16,9 +16,9 @@ function completeBlock(event) {
   event.completed({
     allowEvent: false,
     errorMessage:
-      "This is a forwarded email. Click Open form, complete Priority, End Date, and Category, then send again.",
+      "This is a forwarded email. Click Open form, complete Priority, End Date, and Category, then save to send.",
     errorMessageMarkdown:
-      "This is a **forwarded email**.\n\nClick **Open form**, fill Priority, End Date, and Category, then send again.",
+      "This is a **forwarded email**.\n\nClick **Open form**, fill Priority, End Date, and Category, then save to send.",
     cancelLabel: "Open form",
     commandId: "msgComposeOpenFormButton",
     contextData: JSON.stringify({ reason: "forward-classification" }),
@@ -37,7 +37,7 @@ function addInsight(item, callback) {
       "ForwardGuardNotice",
       {
         type: "insightMessage",
-        message: "Fill Priority, End Date, and Category, then send again.",
+        message: "Fill Priority, End Date, and Category, then save to send.",
         icon: "Icon16",
         actions: [
           {
@@ -93,7 +93,7 @@ function metadataIsComplete(customProps) {
   return customProps.get("forwardMetadataComplete") === "true";
 }
 
-function checkCustomPropertiesThenDecide(item, event) {
+function loadCustomPropertiesThenDecide(item, event) {
   item.loadCustomPropertiesAsync(function (result) {
     if (result.status === Office.AsyncResultStatus.Succeeded) {
       if (metadataIsComplete(result.value)) {
@@ -103,6 +103,23 @@ function checkCustomPropertiesThenDecide(item, event) {
     }
     blockSend(item, event);
   });
+}
+
+function checkCustomPropertiesThenDecide(item, event) {
+  if (item.sessionData && typeof item.sessionData.getAsync === "function") {
+    item.sessionData.getAsync("forwardMetadataComplete", function (sessionResult) {
+      if (
+        sessionResult.status === Office.AsyncResultStatus.Succeeded &&
+        sessionResult.value === "true"
+      ) {
+        allowSend(event);
+        return;
+      }
+      loadCustomPropertiesThenDecide(item, event);
+    });
+    return;
+  }
+  loadCustomPropertiesThenDecide(item, event);
 }
 
 function onMessageSendHandler(event) {

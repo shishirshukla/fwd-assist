@@ -16,6 +16,7 @@ type PaneState =
   | { kind: "browser" }
   | { kind: "ready" }
   | { kind: "saved"; data: ForwardMetadata }
+  | { kind: "sent"; data: ForwardMetadata }
   | { kind: "error"; message: string };
 
 export function TaskPane() {
@@ -49,6 +50,25 @@ export function TaskPane() {
       cancelled = true;
     };
   }, []);
+
+  function sendAfterSave(
+    item: Office.MailboxItem,
+    data: ForwardMetadata,
+  ) {
+    if (typeof item.sendAsync !== "function") {
+      setSaving(false);
+      setState({ kind: "saved", data });
+      return;
+    }
+    item.sendAsync((sendResult) => {
+      setSaving(false);
+      if (sendResult.status === Office.AsyncResultStatus.Succeeded) {
+        setState({ kind: "sent", data });
+        return;
+      }
+      setState({ kind: "saved", data });
+    });
+  }
 
   function saveMetadata(data: ForwardMetadata) {
     const Office = window.Office;
@@ -90,14 +110,17 @@ export function TaskPane() {
           { coercionType: Office.CoercionType.Html },
           () => {
             if (item.internetHeaders?.setAsync) {
-              item.internetHeaders.setAsync({
-                "X-Forward-Priority": data.priority,
-                "X-Forward-End-Date": data.endDate,
-                "X-Forward-Category": data.category,
-              });
+              item.internetHeaders.setAsync(
+                {
+                  "X-Forward-Priority": data.priority,
+                  "X-Forward-End-Date": data.endDate,
+                  "X-Forward-Category": data.category,
+                },
+                () => sendAfterSave(item, data),
+              );
+              return;
             }
-            setSaving(false);
-            setState({ kind: "saved", data });
+            sendAfterSave(item, data);
           },
         );
       });
@@ -133,12 +156,14 @@ export function TaskPane() {
     );
   }
 
-  if (state.kind === "saved") {
+  if (state.kind === "saved" || state.kind === "sent") {
     return (
       <div className="space-y-3 text-sm">
         <p className="flex items-start gap-2 text-[#0e7c3a]">
           <CheckCircle2 className="mt-0.5 size-4 shrink-0" />
-          Classification saved. You can send this forwarded message now.
+          {state.kind === "sent"
+            ? "Classification saved. Message sent."
+            : "Classification saved. Click Send if the message is still open."}
         </p>
         <ul className="space-y-1 text-muted-foreground">
           <li>Priority: {state.data.priority}</li>
@@ -153,11 +178,12 @@ export function TaskPane() {
     <div className="space-y-4">
       <p className="text-sm text-muted-foreground">
         Send is blocked for this forwarded email until these fields are saved.
+        Saving sends the message.
       </p>
       <ForwardMetadataForm
         compact
         submitting={saving}
-        submitLabel="Save classification"
+        submitLabel="Save and send"
         onSubmit={saveMetadata}
       />
     </div>
