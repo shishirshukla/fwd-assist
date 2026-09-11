@@ -82,8 +82,6 @@ export async function GET() {
   } catch (error) {
     report.tcpError = error instanceof Error ? error.message : String(error);
     report.reachable = false;
-    report.hint =
-      "This app host cannot open TCP to the letter API. Railway and other public clouds are often blocked. Run Forward Guard on a machine that can open https://eloan.cgbankmobile.in in a browser (office/WSL), or ask the bank to allow this server's outbound IP to 43.225.0.54:443.";
     return Response.json(report, { status: 503, headers: cors });
   }
 
@@ -92,8 +90,6 @@ export async function GET() {
   } catch (error) {
     report.tlsError = error instanceof Error ? error.message : String(error);
     report.reachable = false;
-    report.hint =
-      "TCP connected but TLS never completed. Public clouds (including Railway) usually cannot finish a handshake to this bank host. Run npm start on WSL/office network that can load the letter API in a browser, expose that host with ngrok for Outlook, or ask the bank to allow this server IP.";
     return Response.json(report, { status: 503, headers: cors });
   }
 

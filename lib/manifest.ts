@@ -1,8 +1,6 @@
 import { readFileSync } from "node:fs";
 import { resolve } from "node:path";
 
-import { letterSubmitHost } from "@/lib/letter-submit";
-
 export const DEFAULT_BASE = "https://localhost:43123";
 const manifestTemplatePath = resolve("public/manifest.template.xml");
 
@@ -54,14 +52,9 @@ export function injectManifestUrls(template: string, baseUrl: string): string {
     return base + path;
   });
 
-  const letterHost = letterSubmitHost();
-  const appDomains = [`<AppDomain>${host}</AppDomain>`];
-  if (letterHost && letterHost !== host) {
-    appDomains.push(`<AppDomain>${letterHost}</AppDomain>`);
-  }
   xml = xml.replace(
-    /<AppDomains>[\s\S]*?<\/AppDomains>/,
-    `<AppDomains>\n    ${appDomains.join("\n    ")}\n  </AppDomains>`,
+    /<AppDomain>[^<]+<\/AppDomain>/,
+    `<AppDomain>${host}</AppDomain>`,
   );
 
   return xml;

@@ -112,19 +112,6 @@ export function letterSubmitEnabled(): boolean {
   return process.env.LETTER_SUBMIT_DISABLED !== "1";
 }
 
-/** Railway/cloud Node usually cannot reach the bank host. Default is Outlook-client submit. */
-export function letterSubmitFromServer(): boolean {
-  return process.env.LETTER_SUBMIT_FROM_SERVER === "1";
-}
-
-export function letterSubmitHost(): string {
-  try {
-    return new URL(letterSubmitBaseUrl()).hostname;
-  } catch {
-    return "eloan.cgbankmobile.in";
-  }
-}
-
 export function mapLetterSubmitFields(input: {
   originalEmailDate?: string;
   senderEmailId?: string;
@@ -229,17 +216,21 @@ function postJson(
     const options: RequestOptions = {
       protocol: url.protocol,
       hostname: url.hostname,
+      servername: url.hostname,
       port: url.port || (url.protocol === "https:" ? 443 : 80),
       path: `${url.pathname}${url.search}`,
       method: "POST",
-      family: 4,
       timeout: timeoutMs,
       rejectUnauthorized: !insecureTls,
+      minVersion: "TLSv1.2",
+      ALPNProtocols: ["http/1.1"],
       headers: {
         "Content-Type": "application/json",
         Accept: "application/json, text/plain, */*",
-        "User-Agent": "ForwardGuard/1.0",
+        "User-Agent":
+          "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36",
         "Content-Length": Buffer.byteLength(body),
+        Connection: "close",
       },
     };
 
@@ -262,7 +253,7 @@ function postJson(
     req.on("timeout", () => {
       req.destroy(
         new Error(
-          `ETIMEDOUT: connection timed out after ${timeoutMs}ms to ${url.hostname}:${options.port}. This Node host cannot reach the letter API. Run Forward Guard on the bank network (WSL + ngrok), or whitelist this server's outbound IP on the bank firewall.`,
+          `ETIMEDOUT: no response from ${url.hostname}:${options.port} after ${timeoutMs}ms`,
         ),
       );
     });
@@ -350,10 +341,7 @@ export async function submitLetter(
     return result;
   } catch (error) {
     const serialized = flattenError(error);
-    let message = `Letter API request failed: ${serialized.message}`;
-    if (/ETIMEDOUT|timed out|ECONNRESET|ENETUNREACH|EHOSTUNREACH|fetch failed/i.test(message)) {
-      message += ` Check GET /api/letter-health on this same host.`;
-    }
+    const message = `Letter API request failed: ${serialized.message}`;
     appendLog({
       level: "error",
       source: "letter-submit",

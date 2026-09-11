@@ -1,13 +1,10 @@
-import { mkdirSync, readFileSync, appendFileSync, existsSync, writeFileSync } from "node:fs";
+import { mkdirSync, readFileSync, appendFileSync, existsSync } from "node:fs";
 import { dirname, resolve } from "node:path";
 
 import {
-  letterSubmitBaseUrl,
   letterSubmitEnabled,
-  letterSubmitFromServer,
   mapLetterSubmitFields,
   submitLetter,
-  buildLetterSubmitUrl,
   type LetterSubmitFields,
 } from "@/lib/letter-submit";
 
@@ -53,7 +50,6 @@ export type StoredForwardCapture = {
     error: string | null;
     url?: string;
     responseText?: string;
-    source?: string;
   };
 };
 
@@ -215,19 +211,6 @@ export async function pushCaptureIfConfigured(
     return { attempted: false, ok: false, status: null, error: null };
   }
 
-  if (!letterSubmitFromServer()) {
-    return {
-      attempted: false,
-      ok: false,
-      status: null,
-      error: null,
-      url: buildLetterSubmitUrl(letterSubmitBaseUrl()),
-      source: "client",
-      responseText:
-        "skipped-server: Outlook on your network POSTs submit-letter (this Node host cannot reach the bank API).",
-    };
-  }
-
   const result = await submitLetter(record.letterSubmit);
   return {
     attempted: result.attempted,
@@ -235,25 +218,8 @@ export async function pushCaptureIfConfigured(
     status: result.status,
     error: result.error,
     url: result.url,
-    source: "server",
     responseText: result.responseText,
   };
-}
-
-export function updateCaptureRemotePush(
-  id: string,
-  remotePush: StoredForwardCapture["remotePush"],
-): StoredForwardCapture | null {
-  const records = readStoredCaptures();
-  const index = records.findIndex((record) => record.id === id);
-  if (index < 0) {
-    return null;
-  }
-  records[index] = { ...records[index], remotePush };
-  const file = captureFilePath();
-  mkdirSync(dirname(file), { recursive: true });
-  writeFileSync(file, records.map((record) => formatCaptureText(record)).join(""), "utf8");
-  return records[index];
 }
 
 export function newCaptureId(): string {

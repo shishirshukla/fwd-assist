@@ -182,19 +182,7 @@ export function CapturesList() {
                 </div>
               </dl>
             ) : null}
-            {capture.remotePush?.source === "client" ||
-            capture.remotePush?.responseText?.indexOf("skipped-server") === 0 ? (
-              <p className="text-xs text-muted-foreground break-all">
-                {capture.remotePush.attempted
-                  ? `Letter API from Outlook ${capture.remotePush.ok ? "accepted" : "failed"}`
-                  : "Letter API waits for Outlook on your network (this Node host cannot reach the bank)."}
-                {capture.remotePush.status ? ` (${capture.remotePush.status})` : ""}
-                {capture.remotePush.error ? ` — ${capture.remotePush.error}` : ""}
-                {capture.remotePush.responseText && capture.remotePush.attempted
-                  ? ` — ${capture.remotePush.responseText}`
-                  : ""}
-              </p>
-            ) : capture.remotePush?.attempted ? (
+            {capture.remotePush?.attempted ? (
               <p className="text-xs text-muted-foreground break-all">
                 Letter API {capture.remotePush.ok ? "accepted" : "failed"}
                 {capture.remotePush.status ? ` (${capture.remotePush.status})` : ""}

@@ -39,7 +39,6 @@ In Railway → **Variables**:
 | --- | --- | --- |
 | `PUBLIC_BASE_URL` | `https://fwd-assist-production.up.railway.app` | **Yes** — use your exact HTTPS URL |
 | `LETTER_SUBMIT_URL` | Override letter API base URL | No — defaults to the pensioner `submit-letter` API |
-| `LETTER_SUBMIT_FROM_SERVER` | `1` to POST submit-letter from Railway/Node | No — default is Outlook-client submit |
 | `LETTER_SUBMIT_TIMEOUT_MS` | Outbound timeout in ms (default `30000`) | No |
 
 Railway also sets `RAILWAY_PUBLIC_DOMAIN` at **runtime** as a fallback, but `PUBLIC_BASE_URL` is more reliable (especially with custom domains).
@@ -98,7 +97,6 @@ If `manifest.xml` still shows `localhost`, `PUBLIC_BASE_URL` is not set or the r
 | App won't start on Railway | Deploy logs: missing `PUBLIC_BASE_URL` — add the variable |
 | Add-in install fails | Confirm icon/taskpane URLs load in a browser |
 | Domain changed | Update `PUBLIC_BASE_URL`, redeploy, remove old add-in, sideload new manifest |
-| `Letter API request failed` / Node cannot reach letter API | Expected on Railway. Use add-in **1.0.9.0**; Outlook POSTs submit-letter from your PC. Do not set `LETTER_SUBMIT_FROM_SERVER` unless Node is on the bank network. |
 
 ## Local development vs Railway
 

@@ -63,146 +63,38 @@ function emailsFromRecipients(list) {
   return result;
 }
 
-function addInOrigin() {
+function captureUrl() {
   try {
     if (typeof location !== "undefined" && location.origin) {
-      return location.origin;
+      return location.origin + "/api/captures";
     }
   } catch (ignore) {}
-  return "";
+  return "/api/captures";
 }
 
-function captureUrl() {
-  var origin = addInOrigin();
-  return origin ? origin + "/api/captures" : "/api/captures";
-}
-
-var letterConfig = null;
-
-function prefetchLetterConfig() {
-  var origin = addInOrigin();
-  var url = (origin || "") + "/api/letter-config";
-  try {
-    if (typeof fetch !== "function") {
+function postCapture(payload, done) {
+  var finished = false;
+  function finish() {
+    if (finished) {
       return;
     }
-    fetch(url)
-      .then(function (res) {
-        return res.json();
-      })
-      .then(function (data) {
-        letterConfig = data;
-      }, function () {});
-  } catch (ignore) {}
-}
-
-prefetchLetterConfig();
-
-function na(value) {
-  var trimmed = (value || "").trim();
-  return trimmed ? trimmed : "NA";
-}
-
-function toYyyyMmDd(value) {
-  var trimmed = (value || "").trim();
-  var iso = trimmed.match(/(\d{4})-(\d{2})-(\d{2})/);
-  if (iso) {
-    return iso[1] + "-" + iso[2] + "-" + iso[3];
-  }
-  var parsed = Date.parse(trimmed);
-  if (!isNaN(parsed)) {
-    var date = new Date(parsed);
-    var month = String(date.getMonth() + 1);
-    var day = String(date.getDate());
-    if (month.length < 2) month = "0" + month;
-    if (day.length < 2) day = "0" + day;
-    return date.getFullYear() + "-" + month + "-" + day;
-  }
-  var now = new Date();
-  var m = String(now.getMonth() + 1);
-  var d = String(now.getDate());
-  if (m.length < 2) m = "0" + m;
-  if (d.length < 2) d = "0" + d;
-  return now.getFullYear() + "-" + m + "-" + d;
-}
-
-function lookupValue(table, emails, fallback) {
-  var map = {};
-  var key;
-  for (key in table || {}) {
-    if (Object.prototype.hasOwnProperty.call(table, key)) {
-      map[String(key).trim().toLowerCase()] = table[key];
+    finished = true;
+    if (typeof done === "function") {
+      done();
     }
   }
-  var i;
-  for (i = 0; i < emails.length; i += 1) {
-    var full = String(emails[i] || "")
-      .trim()
-      .toLowerCase();
-    if (!full) continue;
-    if (map[full]) return map[full];
-    var local = full.split("@")[0];
-    if (local && map[local]) return map[local];
-  }
-  return fallback;
-}
 
-function mapLetterFields(payload, lookup) {
-  lookup = lookup || {};
-  var defaults = lookup.defaults || {};
-  var emailDate = toYyyyMmDd(payload.originalEmailDate);
-  return {
-    receivingDate: emailDate,
-    senderOffice: na(payload.senderEmailId),
-    sendName: na(payload.senderName),
-    letterNo: "NA",
-    letterDate: emailDate,
-    letterDesc: na(payload.subject),
-    department: lookupValue(
-      lookup.departmentByToEmail,
-      [].concat(payload.toEmailAddresses || [], payload.originalToEmailAddresses || []),
-      defaults.department || "NA",
-    ),
-    priority: na(payload.priority),
-    EntryBy: lookupValue(
-      lookup.entryByFromEmail,
-      [payload.forwardedByEmail || "", payload.senderEmailId || ""].filter(Boolean),
-      defaults.entryBy || "NA",
-    ),
-  };
-}
+  setTimeout(finish, 4000);
+  var url = captureUrl();
+  var body = JSON.stringify(payload);
 
-function postJson(url, body, headers, mode, done) {
   try {
     if (typeof fetch === "function") {
       fetch(url, {
         method: "POST",
-        mode: mode || "cors",
-        headers: headers,
+        headers: { "Content-Type": "application/json" },
         body: body,
-      }).then(
-        function (res) {
-          if (mode === "no-cors") {
-            done({ ok: true, status: 0, opaque: true, text: "" });
-            return;
-          }
-          res.text().then(
-            function (text) {
-              done({ ok: res.ok, status: res.status, text: text || "" });
-            },
-            function () {
-              done({ ok: res.ok, status: res.status, text: "" });
-            },
-          );
-        },
-        function (error) {
-          done({
-            ok: false,
-            status: null,
-            error: error && error.message ? error.message : "fetch failed",
-          });
-        },
-      );
+      }).then(finish, finish);
       return;
     }
   } catch (ignore) {}
@@ -210,118 +102,13 @@ function postJson(url, body, headers, mode, done) {
   try {
     var xhr = new XMLHttpRequest();
     xhr.open("POST", url, true);
-    var headerName;
-    for (headerName in headers) {
-      if (Object.prototype.hasOwnProperty.call(headers, headerName)) {
-        xhr.setRequestHeader(headerName, headers[headerName]);
-      }
-    }
-    xhr.onload = function () {
-      done({
-        ok: xhr.status >= 200 && xhr.status < 300,
-        status: xhr.status,
-        text: xhr.responseText || "",
-      });
-    };
-    xhr.onerror = function () {
-      done({ ok: false, status: null, error: "xhr failed" });
-    };
+    xhr.setRequestHeader("Content-Type", "application/json");
+    xhr.onload = finish;
+    xhr.onerror = finish;
     xhr.send(body);
   } catch (ignore2) {
-    done({ ok: false, status: null, error: "post failed" });
+    finish();
   }
-}
-
-function postCapture(payload, done) {
-  var finished = false;
-  function finish(result) {
-    if (finished) {
-      return;
-    }
-    finished = true;
-    if (typeof done === "function") {
-      done(result || null);
-    }
-  }
-
-  setTimeout(function () {
-    finish(null);
-  }, 4000);
-  var url = captureUrl();
-  var body = JSON.stringify(payload);
-
-  postJson(url, body, { "Content-Type": "application/json" }, "cors", function (result) {
-    if (!result || !result.ok) {
-      finish(null);
-      return;
-    }
-    try {
-      finish(JSON.parse(result.text));
-    } catch (ignore) {
-      finish(null);
-    }
-  });
-}
-
-function postLetterFromClient(url, fields, done) {
-  var body = JSON.stringify(fields);
-  function nextPlain() {
-    postJson(
-      url,
-      body,
-      { "Content-Type": "text/plain;charset=UTF-8" },
-      "cors",
-      function (result) {
-        if (result && (result.ok || result.status)) {
-          done(result);
-          return;
-        }
-        postJson(
-          url,
-          body,
-          { "Content-Type": "text/plain;charset=UTF-8" },
-          "no-cors",
-          done,
-        );
-      },
-    );
-  }
-
-  postJson(url, body, { "Content-Type": "application/json" }, "cors", function (result) {
-    if (result && result.ok) {
-      done(result);
-      return;
-    }
-    if (result && result.status && result.status >= 400 && result.status < 500) {
-      done(result);
-      return;
-    }
-    nextPlain();
-  });
-}
-
-function reportLetterResult(captureId, url, result, done) {
-  var origin = addInOrigin();
-  var reportUrl = (origin || "") + "/api/letter-client-result";
-  postJson(
-    reportUrl,
-    JSON.stringify({
-      captureId: captureId || "",
-      ok: Boolean(result && result.ok),
-      status: result ? result.status : null,
-      error: result && result.error ? result.error : null,
-      url: url,
-      responseText: result && result.text ? String(result.text).slice(0, 4000) : "",
-      opaque: Boolean(result && result.opaque),
-    }),
-    { "Content-Type": "application/json" },
-    "cors",
-    function () {
-      if (typeof done === "function") {
-        done();
-      }
-    },
-  );
 }
 
 function getRecipients(recip, callback) {
@@ -443,28 +230,7 @@ function captureForwardThenAllow(item, event) {
 
   setTimeout(finish, 5000);
   collectPayload(item, function (payload) {
-    postCapture(payload, function (stored) {
-      var fields =
-        (stored && stored.letterSubmit) ||
-        mapLetterFields(payload, letterConfig && letterConfig.lookup);
-      var url =
-        (stored && stored.letterSubmitUrl) ||
-        (letterConfig && letterConfig.url) ||
-        "https://eloan.cgbankmobile.in/pensioner_api/auth/api/submit-letter";
-      var submitFromServer = stored
-        ? stored.letterSubmitFromServer
-        : letterConfig && letterConfig.submitFromServer;
-      var submitEnabled = letterConfig ? letterConfig.submitEnabled !== false : true;
-
-      if (!submitEnabled || submitFromServer) {
-        finish();
-        return;
-      }
-
-      postLetterFromClient(url, fields, function (letterResult) {
-        reportLetterResult(stored && stored.id, url, letterResult, finish);
-      });
-    });
+    postCapture(payload, finish);
   });
 }
 
