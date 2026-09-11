@@ -22,13 +22,28 @@ export function newLogId(): string {
 }
 
 export function formatLogText(entry: AppLogEntry): string {
-  return [
+  const lines = [
     `### LOG ${entry.id} ${entry.timestamp} ${entry.level} ${entry.source}`,
     entry.message,
-    `### JSON ${JSON.stringify(entry)}`,
-    "### END",
-    "",
-  ].join("\n");
+  ];
+  const response =
+    typeof entry.details?.responseBody === "string"
+      ? entry.details.responseBody
+      : typeof entry.details?.responseText === "string"
+        ? entry.details.responseText
+        : "";
+  const errorText =
+    typeof entry.details?.error === "string"
+      ? entry.details.error
+      : "";
+  if (response) {
+    lines.push("Response:", response);
+  }
+  if (errorText) {
+    lines.push("Error:", errorText);
+  }
+  lines.push(`### JSON ${JSON.stringify(entry)}`, "### END", "");
+  return lines.join("\n");
 }
 
 export function parseLogFile(contents: string): AppLogEntry[] {

@@ -106,7 +106,7 @@ export function LogsList() {
               <p className="text-muted-foreground">Capture {entry.captureId}</p>
             ) : null}
             {entry.details ? (
-              <pre className="max-h-48 overflow-auto rounded-lg bg-muted p-3 text-xs whitespace-pre-wrap">
+              <pre className="max-h-80 overflow-auto rounded-lg bg-muted p-3 text-xs whitespace-pre-wrap">
                 {JSON.stringify(entry.details, null, 2)}
               </pre>
             ) : null}

@@ -109,7 +109,7 @@ Edit **`data/letter-lookup.json`** to add live bank addresses:
 | --- | --- |
 | `LETTER_SUBMIT_URL` or `CAPTURE_PUSH_URL` | Override the letter API base URL |
 | `LETTER_SUBMIT_DISABLED` | Set to `1` to skip the remote call |
-| `LETTER_SUBMIT_METHOD` | `GET` (default) or `POST` |
+| `LETTER_SUBMIT_METHOD` | `POST` (default). Set to `GET` only if the server requires it |
 | `CAPTURE_FILE_PATH` | Optional override for the local text file path |
 | `APP_LOG_PATH` | Optional override for `data/app-logs.txt` |
 

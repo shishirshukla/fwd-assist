@@ -166,6 +166,24 @@ export function buildLetterSubmitUrl(
   return url.toString();
 }
 
+function serializeError(error: unknown): Record<string, unknown> {
+  if (error instanceof Error) {
+    const cause =
+      error.cause instanceof Error
+        ? { name: error.cause.name, message: error.cause.message }
+        : error.cause
+          ? { value: String(error.cause) }
+          : undefined;
+    return {
+      name: error.name,
+      message: error.message,
+      stack: error.stack || "",
+      cause,
+    };
+  }
+  return { message: String(error) };
+}
+
 export async function submitLetter(
   fields: LetterSubmitFields,
 ): Promise<{
@@ -177,13 +195,24 @@ export async function submitLetter(
   responseText: string;
 }> {
   const url = buildLetterSubmitUrl(letterSubmitBaseUrl(), fields);
-  const method = (process.env.LETTER_SUBMIT_METHOD || "GET").toUpperCase();
+  const method = (process.env.LETTER_SUBMIT_METHOD || "POST").toUpperCase();
+  const body = new URLSearchParams({
+    receivingDate: fields.receivingDate,
+    senderOffice: fields.senderOffice,
+    sendName: fields.sendName,
+    letterNo: fields.letterNo,
+    letterDate: fields.letterDate,
+    letterDesc: fields.letterDesc,
+    department: fields.department,
+    priority: fields.priority,
+    EntryBy: fields.EntryBy,
+  }).toString();
 
   appendLog({
     level: "info",
     source: "letter-submit",
-    message: `Calling letter API (${method})`,
-    details: { method, url, fields },
+    message: `Calling letter API (${method}) ${url}`,
+    details: { method, url, fields, body },
   });
 
   try {
@@ -191,9 +220,11 @@ export async function submitLetter(
       method,
       headers: {
         Accept: "application/json, text/plain, */*",
+        "Content-Type": "application/x-www-form-urlencoded",
       },
+      body: method === "GET" || method === "HEAD" ? undefined : body,
     });
-    const responseText = (await response.text()).slice(0, 1000);
+    const responseText = (await response.text()).slice(0, 20000);
     const result = {
       attempted: true,
       ok: response.ok,
@@ -206,19 +237,32 @@ export async function submitLetter(
       level: result.ok ? "info" : "error",
       source: "letter-submit",
       message: result.ok
-        ? `Letter API accepted (${response.status})`
-        : `Letter API failed (${response.status})`,
-      details: { url, status: response.status, responseText },
+        ? `Letter API returned ${response.status}: ${responseText || "(empty body)"}`
+        : `Letter API error ${response.status}: ${responseText || result.error}`,
+      details: {
+        url,
+        method,
+        status: response.status,
+        ok: response.ok,
+        responseBody: responseText || "(empty body)",
+        error: result.error,
+      },
     });
     return result;
   } catch (error) {
-    const message =
-      error instanceof Error ? error.message : "Letter API request failed";
+    const serialized = serializeError(error);
+    const message = `Letter API request failed: ${String(serialized.message || error)}`;
     appendLog({
       level: "error",
       source: "letter-submit",
       message,
-      details: { url, method },
+      details: {
+        url,
+        method,
+        error: message,
+        errorDetails: serialized,
+        responseBody: "",
+      },
     });
     return {
       attempted: true,
