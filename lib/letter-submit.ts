@@ -112,6 +112,19 @@ export function letterSubmitEnabled(): boolean {
   return process.env.LETTER_SUBMIT_DISABLED !== "1";
 }
 
+/** Railway/cloud Node usually cannot reach the bank host. Default is Outlook-client submit. */
+export function letterSubmitFromServer(): boolean {
+  return process.env.LETTER_SUBMIT_FROM_SERVER === "1";
+}
+
+export function letterSubmitHost(): string {
+  try {
+    return new URL(letterSubmitBaseUrl()).hostname;
+  } catch {
+    return "eloan.cgbankmobile.in";
+  }
+}
+
 export function mapLetterSubmitFields(input: {
   originalEmailDate?: string;
   senderEmailId?: string;
@@ -180,6 +193,8 @@ function flattenError(error: unknown): { message: string; details: Record<string
         code: nodeErr.code,
         errno: nodeErr.errno,
         syscall: nodeErr.syscall,
+        address: (nodeErr as NodeJS.ErrnoException & { address?: string }).address,
+        port: (nodeErr as NodeJS.ErrnoException & { port?: number }).port,
       });
       current = nodeErr.cause;
     } else {

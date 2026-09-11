@@ -1,6 +1,8 @@
 # Forward Guard — Outlook Web add-in
 
-Office add-in for Outlook on the web. It runs when the user clicks **Send**, detects a **forward**, extracts the original letter details, posts them to the capture API (which calls submit-letter), and **lets send continue**. There is no classification form.
+Office add-in for Outlook on the web. It runs when the user clicks **Send**, detects a **forward**, extracts the original letter details, stores them, and **POSTs submit-letter from Outlook on your network**. Send continues. There is no classification form.
+
+The Node host on Railway cannot open HTTPS to `eloan.cgbankmobile.in` (TLS handshake hangs). The letter call therefore runs in the Outlook add-in, which uses your office/WSL network.
 
 ## How it works
 
@@ -9,7 +11,7 @@ Office add-in for Outlook on the web. It runs when the user clicks **Send**, det
    - `getComposeTypeAsync` returns `Forward`, or
    - the subject starts with `FW:` / `Fwd:`
 3. If it is not a forward, send continues with no capture.
-4. If it is a forward, the add-in reads sender, date, subject, body, and To/Cc, `POST`s `/api/captures`, then allows send.
+4. If it is a forward, the add-in reads sender, date, subject, body, and To/Cc, `POST`s `/api/captures` (store + field mapping), then POSTs the JSON body to submit-letter **from the browser/Outlook runtime**, then allows send.
 
 The home page embeds an **Outlook-style simulator** (`/simulator.html`) so you can try the same flow in a browser without sideloading.
 
@@ -77,7 +79,7 @@ On Windows, use **PowerShell** or **Command Prompt** in that folder. If `npm` is
 
 ## Capture API
 
-When a forwarded message is classified, the add-in `POST`s to **`/api/captures`**. That route stores a text record and calls:
+When a forwarded message is captured, the add-in `POST`s **`/api/captures`** (stored on this app). That route maps fields and returns the JSON body. **Outlook then POSTs** that JSON to:
 
 `https://eloan.cgbankmobile.in/pensioner_api/auth/api/submit-letter`
 
@@ -122,7 +124,7 @@ Edit **`data/letter-lookup.json`** to add live bank addresses:
 | Variable | Purpose |
 | --- | --- |
 | `LETTER_SUBMIT_URL` or `CAPTURE_PUSH_URL` | Override the letter API base URL |
-| `LETTER_SUBMIT_DISABLED` | Set to `1` to skip the remote call |
+| `LETTER_SUBMIT_FROM_SERVER` | Set to `1` only if this Node process can reach the bank (office/WSL). Default is Outlook-client submit. |
 | `LETTER_SUBMIT_TLS_INSECURE` | Set to `1` if the bank HTTPS certificate is untrusted |
 | `LETTER_SUBMIT_TIMEOUT_MS` | Outbound timeout, default `30000` |
 | `CAPTURE_FILE_PATH` | Optional override for the local text file path |
@@ -130,10 +132,13 @@ Edit **`data/letter-lookup.json`** to add live bank addresses:
 
 ```bash
 curl -s http://127.0.0.1:43123/api/captures
+curl -s http://127.0.0.1:43123/api/letter-config
 curl -s http://127.0.0.1:43123/api/letter-health
 ```
 
-If logs show `fetch failed`, a TCP timeout, or a TLS timeout, this app host cannot complete HTTPS to `eloan.cgbankmobile.in` (common on Railway). Run the Node server on the bank/office network (WSL + ngrok for Outlook), or ask the bank to allow this server’s outbound IP. Open `/api/letter-health` for DNS/TCP/TLS details.
+If `/api/letter-health` shows a TLS timeout, this **Node** host cannot reach the bank. That is expected on Railway. Leave `LETTER_SUBMIT_FROM_SERVER` unset, sideload **1.0.9.0**, and send a forward from Outlook on a network that can open the letter API in a browser. Results are written to `/logs` via `/api/letter-client-result`.
+
+To force the old server-side POST (only when Node can reach the bank): `LETTER_SUBMIT_FROM_SERVER=1`.
 
 ## Logs API
 
@@ -169,7 +174,7 @@ Quick steps:
 
 ### Sideload after this change
 
-After a version bump (now **1.0.8.0**), **remove** Forward Guard and sideload `manifest.xml` again. Forward a message and click **Send**. The mail should go out; check `/captures` and `/logs` for the extracted letter payload.
+After a version bump (now **1.0.9.0**), **remove** Forward Guard and sideload `manifest.xml` again. Forward a message and click **Send**. The mail should go out; check `/captures` and `/logs` for the letter payload and the client submit result.
 
 Every push to `main` triggers a new Railway deploy automatically.
 

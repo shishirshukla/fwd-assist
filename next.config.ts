@@ -23,6 +23,8 @@ const nextConfig: NextConfig = {
       { source: "/api/captures", headers: addInHeaders },
       { source: "/api/logs", headers: addInHeaders },
       { source: "/api/letter-health", headers: addInHeaders },
+      { source: "/api/letter-config", headers: addInHeaders },
+      { source: "/api/letter-client-result", headers: addInHeaders },
       { source: "/api/deploy-info", headers: addInHeaders },
       { source: "/launchevent.js", headers: addInHeaders },
       { source: "/commands.html", headers: addInHeaders },
