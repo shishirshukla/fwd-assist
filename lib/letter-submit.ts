@@ -145,13 +145,8 @@ export function mapLetterSubmitFields(input: {
   };
 }
 
-export function buildLetterSubmitUrl(
-  baseUrl: string,
-  fields: LetterSubmitFields,
-): string {
-  const url = new URL(baseUrl);
-  url.search = "";
-  const params = new URLSearchParams({
+export function letterSubmitPayload(fields: LetterSubmitFields): LetterSubmitFields {
+  return {
     receivingDate: fields.receivingDate,
     senderOffice: fields.senderOffice,
     sendName: fields.sendName,
@@ -161,8 +156,12 @@ export function buildLetterSubmitUrl(
     department: fields.department,
     priority: fields.priority,
     EntryBy: fields.EntryBy,
-  });
-  url.search = params.toString();
+  };
+}
+
+export function buildLetterSubmitUrl(baseUrl: string): string {
+  const url = new URL(baseUrl);
+  url.search = "";
   return url.toString();
 }
 
@@ -194,35 +193,26 @@ export async function submitLetter(
   url: string;
   responseText: string;
 }> {
-  const url = buildLetterSubmitUrl(letterSubmitBaseUrl(), fields);
-  const method = (process.env.LETTER_SUBMIT_METHOD || "POST").toUpperCase();
-  const body = new URLSearchParams({
-    receivingDate: fields.receivingDate,
-    senderOffice: fields.senderOffice,
-    sendName: fields.sendName,
-    letterNo: fields.letterNo,
-    letterDate: fields.letterDate,
-    letterDesc: fields.letterDesc,
-    department: fields.department,
-    priority: fields.priority,
-    EntryBy: fields.EntryBy,
-  }).toString();
+  const url = buildLetterSubmitUrl(letterSubmitBaseUrl());
+  const method = "POST";
+  const payload = letterSubmitPayload(fields);
+  const body = JSON.stringify(payload);
 
   appendLog({
     level: "info",
     source: "letter-submit",
-    message: `Calling letter API (${method}) ${url}`,
-    details: { method, url, fields, body },
+    message: `Calling letter API (POST JSON) ${url}`,
+    details: { method, url, payload, body },
   });
 
   try {
     const response = await fetch(url, {
-      method,
+      method: "POST",
       headers: {
         Accept: "application/json, text/plain, */*",
-        "Content-Type": "application/x-www-form-urlencoded",
+        "Content-Type": "application/json",
       },
-      body: method === "GET" || method === "HEAD" ? undefined : body,
+      body,
     });
     const responseText = (await response.text()).slice(0, 20000);
     const result = {

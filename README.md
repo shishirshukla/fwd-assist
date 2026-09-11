@@ -81,9 +81,23 @@ When a forwarded message is classified, the add-in `POST`s to **`/api/captures`*
 
 `https://eloan.cgbankmobile.in/pensioner_api/auth/api/submit-letter`
 
-with query-string parameters:
+as **POST** `Content-Type: application/json`:
 
-| Query param | Source |
+```json
+{
+  "receivingDate": "2026-09-10",
+  "senderOffice": "NA",
+  "sendName": "NA",
+  "letterNo": "NA",
+  "letterDate": "2026-09-10",
+  "letterDesc": "NA",
+  "department": "TEST",
+  "priority": "High",
+  "EntryBy": "BOD"
+}
+```
+
+| JSON field | Source |
 | --- | --- |
 | `receivingDate` | Original email date as `yyyy-mm-dd` |
 | `letterDate` | Same as `receivingDate` |
@@ -109,7 +123,6 @@ Edit **`data/letter-lookup.json`** to add live bank addresses:
 | --- | --- |
 | `LETTER_SUBMIT_URL` or `CAPTURE_PUSH_URL` | Override the letter API base URL |
 | `LETTER_SUBMIT_DISABLED` | Set to `1` to skip the remote call |
-| `LETTER_SUBMIT_METHOD` | `POST` (default). Set to `GET` only if the server requires it |
 | `CAPTURE_FILE_PATH` | Optional override for the local text file path |
 | `APP_LOG_PATH` | Optional override for `data/app-logs.txt` |
 
