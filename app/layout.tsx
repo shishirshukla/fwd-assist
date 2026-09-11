@@ -5,7 +5,7 @@ import "./globals.css";
 export const metadata: Metadata = {
   title: "Forward Guard — Outlook add-in",
   description:
-    "Intercepts Send on forwarded Outlook messages and collects Priority, End Date, and Category.",
+    "Intercepts Send on forwarded Outlook messages and submits extracted letter details.",
 };
 
 export default function RootLayout({ children }: LayoutProps<"/">) {

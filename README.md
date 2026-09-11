@@ -1,16 +1,15 @@
 # Forward Guard — Outlook Web add-in
 
-Office add-in for Outlook on the web. It runs when the user clicks **Send**, checks whether the message is a **forward**, and if it is, **stops send** until Priority, End Date, and Category are filled in.
+Office add-in for Outlook on the web. It runs when the user clicks **Send**, detects a **forward**, extracts the original letter details, posts them to the capture API (which calls submit-letter), and **lets send continue**. There is no classification form.
 
 ## How it works
 
-1. Outlook raises `OnMessageSend` (Smart Alerts) when Send is clicked.
+1. Outlook raises `OnMessageSend` when Send is clicked.
 2. `public/launchevent.js` treats the item as forwarded when:
    - `getComposeTypeAsync` returns `Forward`, or
    - the subject starts with `FW:` / `Fwd:`
-3. If it is not a forward, send continues.
-4. If it is a forward and classification is missing, send is cancelled and Outlook can open the **Classify forward** task pane (`/taskpane`).
-5. Saving the form writes custom properties, posts the original message details to `POST /api/captures` (stored in a text file), then sends the mail.
+3. If it is not a forward, send continues with no capture.
+4. If it is a forward, the add-in reads sender, date, subject, body, and To/Cc, `POST`s `/api/captures`, then allows send.
 
 The home page embeds an **Outlook-style simulator** (`/simulator.html`) so you can try the same flow in a browser without sideloading.
 
@@ -92,7 +91,7 @@ with query-string parameters:
 | `sendName` | Original sender name, or `NA` |
 | `letterNo` | Always `NA` |
 | `letterDesc` | Subject line |
-| `priority` | Priority from the classification form |
+| `priority` | `NA` (no form). Override later via lookup if needed |
 | `department` | Lookup of the forward **To** address in `data/letter-lookup.json` |
 | `EntryBy` | Lookup of the forward **From** address (mailbox user) in `data/letter-lookup.json` |
 
@@ -150,15 +149,9 @@ Quick steps:
 5. **Redeploy** — open `https://YOUR-APP.up.railway.app/api/deploy-info` and confirm `configuredBaseUrl` matches your Railway domain.
 6. Download `https://YOUR-APP.up.railway.app/manifest.xml` and sideload in Outlook Web.
 
-### Open the form after Send is blocked
+### Sideload after this change
 
-Outlook on the web **cannot auto-open** the sidebar from the Send event. The add-in must not call dialog or task-pane APIs from `OnMessageSend` — that breaks later opens.
-
-1. After a version bump (now **1.0.6.0**), **remove** Forward Guard and sideload `manifest.xml` again.
-2. Forward a message → **Send**.
-3. In the alert, click **Open form** (Outlook may label it **Take Action**).
-4. Or click **Open form** on the message infobar, or **Apps** → **Forward Guard**.
-5. Fill the three fields → **Save and send**. Outlook should send the message immediately.
+After a version bump (now **1.0.7.0**), **remove** Forward Guard and sideload `manifest.xml` again. Forward a message and click **Send**. The mail should go out; check `/captures` and `/logs` for the extracted letter payload.
 
 Every push to `main` triggers a new Railway deploy automatically.
 
@@ -208,18 +201,14 @@ Quick sanity check in a browser:
 3. On the ribbon: **Apps** (or **Get Add-ins**) → **My add-ins**.
 4. Under **Custom add-ins** → **Add a custom add-in** → **Add from file**.
 5. Upload `public/manifest.xml` from your repo (the file you just updated with the tunnel URL).
-6. Accept the prompt. You should see **Forward Guard** on the compose ribbon and a **Classify forward** button.
+6. Accept the prompt. Forward Guard is registered for Send on compose.
 
 ### 5. Exercise the Send intercept
 
 | Step | Action | Expected result |
 | --- | --- | --- |
-| 1 | Forward a message, click **Send** | Send is blocked; Outlook may show a notification and open the task pane |
-| 2 | Fill **Priority**, **End Date**, **Category** → **Save and send** | Message is classified and sent |
-| 3 | If the compose window is still open | Click **Send** once more (Outlook will allow it) |
-| 4 | Send a **new** (non-forward) message | Sends immediately — no form |
-
-If Send is not blocked on a forward, open **Classify forward** from Apps, save the form (that also sends).
+| 1 | Forward a message, click **Send** | Message sends; capture appears at `/captures` and `/logs` |
+| 2 | Send a **new** (non-forward) message | Sends with no capture |
 
 ### Requirements and troubleshooting
 
@@ -267,7 +256,7 @@ Outlook add-ins must be served over **HTTPS**. Point every `https://localhost:43
 1. In Outlook on the web, open a message compose window.
 2. Go to **Get add-ins** → **My add-ins** → **Add a custom add-in** → **Add from file**.
 3. Upload `public/manifest.xml`.
-4. Compose a **Forward**, click **Send**, complete the three fields, then **Save and send**.
+4. Compose a **Forward** and click **Send**. The add-in captures the letter and allows send.
 
 ### Tenant notes
 

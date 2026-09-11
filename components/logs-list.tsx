@@ -81,7 +81,7 @@ export function LogsList() {
           <CardHeader>
             <CardTitle>No logs yet</CardTitle>
             <CardDescription>
-              Classify a forward. Capture and letter-API steps are written here.
+              Send a forwarded message. Capture and letter-API steps are written here.
             </CardDescription>
           </CardHeader>
         </Card>
