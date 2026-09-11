@@ -63,6 +63,12 @@ export function CapturesList() {
             Refresh
           </Button>
           <Link
+            href="/logs"
+            className="inline-flex h-7 items-center rounded-lg border border-border px-2.5 text-[0.8rem] font-medium"
+          >
+            Logs
+          </Link>
+          <Link
             href="/"
             className="inline-flex h-7 items-center rounded-lg border border-border px-2.5 text-[0.8rem] font-medium"
           >

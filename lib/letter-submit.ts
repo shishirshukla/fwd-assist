@@ -1,6 +1,8 @@
 import { existsSync, readFileSync } from "node:fs";
 import { resolve } from "node:path";
 
+import { appendLog } from "@/lib/app-log";
+
 export const DEFAULT_LETTER_SUBMIT_URL =
   "https://eloan.cgbankmobile.in/pensioner_api/auth/api/submit-letter";
 
@@ -177,6 +179,13 @@ export async function submitLetter(
   const url = buildLetterSubmitUrl(letterSubmitBaseUrl(), fields);
   const method = (process.env.LETTER_SUBMIT_METHOD || "GET").toUpperCase();
 
+  appendLog({
+    level: "info",
+    source: "letter-submit",
+    message: `Calling letter API (${method})`,
+    details: { method, url, fields },
+  });
+
   try {
     const response = await fetch(url, {
       method,
@@ -185,7 +194,7 @@ export async function submitLetter(
       },
     });
     const responseText = (await response.text()).slice(0, 1000);
-    return {
+    const result = {
       attempted: true,
       ok: response.ok,
       status: response.status,
@@ -193,12 +202,29 @@ export async function submitLetter(
       url,
       responseText,
     };
+    appendLog({
+      level: result.ok ? "info" : "error",
+      source: "letter-submit",
+      message: result.ok
+        ? `Letter API accepted (${response.status})`
+        : `Letter API failed (${response.status})`,
+      details: { url, status: response.status, responseText },
+    });
+    return result;
   } catch (error) {
+    const message =
+      error instanceof Error ? error.message : "Letter API request failed";
+    appendLog({
+      level: "error",
+      source: "letter-submit",
+      message,
+      details: { url, method },
+    });
     return {
       attempted: true,
       ok: false,
       status: null,
-      error: error instanceof Error ? error.message : "Letter API request failed",
+      error: message,
       url,
       responseText: "",
     };

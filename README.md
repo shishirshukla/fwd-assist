@@ -72,6 +72,7 @@ On Windows, use **PowerShell** or **Command Prompt** in that folder. If `npm` is
 
 - Simulator: `/` or `/simulator.html`
 - Stored captures: `/captures` and `GET /api/captures`
+- Logs: `/logs`, `GET /api/logs`, `GET /api/logs?format=text`
 - Outlook task pane: `/taskpane.html`
 - Manifest (dynamic): `/manifest.xml` (generated from `public/manifest.template.xml`)
 
@@ -111,9 +112,27 @@ Edit **`data/letter-lookup.json`** to add live bank addresses:
 | `LETTER_SUBMIT_DISABLED` | Set to `1` to skip the remote call |
 | `LETTER_SUBMIT_METHOD` | `GET` (default) or `POST` |
 | `CAPTURE_FILE_PATH` | Optional override for the local text file path |
+| `APP_LOG_PATH` | Optional override for `data/app-logs.txt` |
 
 ```bash
 curl -s http://127.0.0.1:43123/api/captures
+```
+
+## Logs API
+
+Capture handling and letter-API calls are appended to **`data/app-logs.txt`**.
+
+| Endpoint | Response |
+| --- | --- |
+| `GET /api/logs` | JSON `{ count, logs }` (newest first) |
+| `GET /api/logs?format=text` | Raw text file |
+| `GET /api/logs?level=error` | Errors only |
+| `GET /api/logs?source=letter-submit` | Letter API logs only |
+| `/logs` | Browser view of the same data |
+
+```bash
+curl -s http://127.0.0.1:43123/api/logs
+curl -s http://127.0.0.1:43123/api/logs?format=text
 ```
 
 ## Deploy on Railway (recommended — no ngrok)
@@ -266,7 +285,8 @@ Outlook add-ins must be served over **HTTPS**. Point every `https://localhost:43
 | `public/capture.js` | Collects sender/date/body/TO/CC and POSTs `/api/captures` |
 | `public/simulator.html` | Browser simulator of the Send flow |
 | `lib/letter-submit.ts` | Maps capture fields and calls submit-letter |
-| `app/api/captures/route.ts` | Stores captures and submits the letter API |
+| `lib/app-log.ts` | Appends application logs to `data/app-logs.txt` |
+| `app/api/logs/route.ts` | `GET /api/logs` JSON and text log access |
 | `data/letter-lookup.json` | TO → department and From → EntryBy dictionaries |
 | `scripts/set-manifest-url.mjs` | Rewrite manifest URLs for your HTTPS tunnel |
 | `scripts/inject-manifest-url.mjs` | Inject Railway/production URLs at build time |

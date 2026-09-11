@@ -68,6 +68,8 @@ If `PUBLIC_BASE_URL` is missing on Railway, the app **fails to start** with a cl
 | `https://YOUR-APP.up.railway.app/manifest.xml` | XML where every URL uses your Railway domain (not `localhost`) |
 | `https://YOUR-APP.up.railway.app/taskpane.html` | Classification form |
 | `https://YOUR-APP.up.railway.app/api/captures` | JSON list of stored forward captures |
+| `https://YOUR-APP.up.railway.app/api/logs` | JSON application logs |
+| `https://YOUR-APP.up.railway.app/api/logs?format=text` | Raw log file |
 | `https://YOUR-APP.up.railway.app/captures` | Human-readable capture log |
 
 ### Quick check

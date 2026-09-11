@@ -1,3 +1,4 @@
+import { appendLog } from "@/lib/app-log";
 import {
   appendCapture,
   newCaptureId,
@@ -37,6 +38,11 @@ export async function POST(request: Request) {
   try {
     body = (await request.json()) as ForwardCaptureInput;
   } catch {
+    appendLog({
+      level: "warn",
+      source: "capture",
+      message: "Rejected capture: request body was not JSON.",
+    });
     return Response.json(
       { error: "Request body must be JSON." },
       { status: 400, headers: cors },
@@ -50,6 +56,11 @@ export async function POST(request: Request) {
     fields.toEmailAddresses.length === 0 &&
     !fields.senderEmailId
   ) {
+    appendLog({
+      level: "warn",
+      source: "capture",
+      message: "Rejected capture: missing subject, body, sender, and recipients.",
+    });
     return Response.json(
       { error: "Provide at least subject, body, sender, or recipients." },
       { status: 400, headers: cors },
@@ -68,8 +79,28 @@ export async function POST(request: Request) {
     },
   };
 
+  appendLog({
+    level: "info",
+    source: "capture",
+    message: `Received capture ${draft.id}`,
+    captureId: draft.id,
+    details: {
+      subject: draft.subject,
+      senderEmailId: draft.senderEmailId,
+      toEmailAddresses: draft.toEmailAddresses,
+      letterSubmit: draft.letterSubmit,
+    },
+  });
+
   draft.remotePush = await pushCaptureIfConfigured(draft);
   appendCapture(draft);
+
+  appendLog({
+    level: "info",
+    source: "capture",
+    message: `Stored capture ${draft.id}`,
+    captureId: draft.id,
+  });
 
   return Response.json(
     {
