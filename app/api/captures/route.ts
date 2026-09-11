@@ -6,6 +6,7 @@ import {
   pushCaptureIfConfigured,
   readStoredCaptures,
   type ForwardCaptureInput,
+  type StoredForwardCapture,
 } from "@/lib/forward-capture";
 import { letterSubmitEnabled } from "@/lib/letter-submit";
 
@@ -67,7 +68,7 @@ export async function POST(request: Request) {
     );
   }
 
-  const draft = {
+  const draft: StoredForwardCapture = {
     id: newCaptureId(),
     capturedAt: new Date().toISOString(),
     ...fields,
