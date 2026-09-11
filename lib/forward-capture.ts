@@ -1,5 +1,5 @@
 import { mkdirSync, readFileSync, appendFileSync, existsSync } from "node:fs";
-import { dirname, resolve } from "node:path";
+import { dirname, join } from "node:path";
 
 import {
   letterSubmitEnabled,
@@ -54,7 +54,7 @@ export type StoredForwardCapture = {
 };
 
 export function captureFilePath(): string {
-  return resolve(process.env.CAPTURE_FILE_PATH || "data/forward-captures.txt");
+  return process.env.CAPTURE_FILE_PATH || join(process.cwd(), "data", "forward-captures.txt");
 }
 
 export function parseMailbox(line: string): { name: string; email: string } {
@@ -192,16 +192,16 @@ export function parseCaptureFile(contents: string): StoredForwardCapture[] {
 
 export function readStoredCaptures(): StoredForwardCapture[] {
   const file = captureFilePath();
-  if (!existsSync(file)) {
+  if (!existsSync(/* turbopackIgnore: true */ file)) {
     return [];
   }
-  return parseCaptureFile(readFileSync(file, "utf8"));
+  return parseCaptureFile(readFileSync(/* turbopackIgnore: true */ file, "utf8"));
 }
 
 export function appendCapture(record: StoredForwardCapture): void {
   const file = captureFilePath();
-  mkdirSync(dirname(file), { recursive: true });
-  appendFileSync(file, formatCaptureText(record), "utf8");
+  mkdirSync(/* turbopackIgnore: true */ dirname(file), { recursive: true });
+  appendFileSync(/* turbopackIgnore: true */ file, formatCaptureText(record), "utf8");
 }
 
 export async function pushCaptureIfConfigured(

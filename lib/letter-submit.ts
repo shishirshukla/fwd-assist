@@ -1,7 +1,7 @@
 import { existsSync, readFileSync } from "node:fs";
 import http from "node:http";
 import https from "node:https";
-import { resolve } from "node:path";
+import { join } from "node:path";
 import type { RequestOptions } from "node:https";
 
 import { appendLog } from "@/lib/app-log";
@@ -89,12 +89,12 @@ function lookupValue(
 }
 
 export function loadLetterLookup(): LetterLookupFile {
-  const file = resolve(process.env.LETTER_LOOKUP_PATH || "data/letter-lookup.json");
-  if (!existsSync(file)) {
+  const file = process.env.LETTER_LOOKUP_PATH || join(process.cwd(), "data", "letter-lookup.json");
+  if (!existsSync(/* turbopackIgnore: true */ file)) {
     return {};
   }
   try {
-    return JSON.parse(readFileSync(file, "utf8")) as LetterLookupFile;
+    return JSON.parse(readFileSync(/* turbopackIgnore: true */ file, "utf8")) as LetterLookupFile;
   } catch {
     return {};
   }
@@ -241,7 +241,6 @@ function postJson(
       timeout: timeoutMs,
       rejectUnauthorized: !insecureTls,
       minVersion: "TLSv1.2",
-      ALPNProtocols: ["http/1.1"],
       headers: {
         "Content-Type": "application/json",
         Accept: "application/json, text/plain, */*",

@@ -1,5 +1,5 @@
 import { appendFileSync, existsSync, mkdirSync, readFileSync } from "node:fs";
-import { dirname, resolve } from "node:path";
+import { dirname, join } from "node:path";
 
 export type LogLevel = "info" | "warn" | "error";
 
@@ -14,7 +14,7 @@ export type AppLogEntry = {
 };
 
 export function logFilePath(): string {
-  return resolve(process.env.APP_LOG_PATH || "data/app-logs.txt");
+  return process.env.APP_LOG_PATH || join(process.cwd(), "data", "app-logs.txt");
 }
 
 export function newLogId(): string {
@@ -62,11 +62,11 @@ export function parseLogFile(contents: string): AppLogEntry[] {
 
 export function readStoredLogs(): AppLogEntry[] {
   const file = logFilePath();
-  if (!existsSync(file)) {
+  if (!existsSync(/* turbopackIgnore: true */ file)) {
     return [];
   }
   try {
-    return parseLogFile(readFileSync(file, "utf8"));
+    return parseLogFile(readFileSync(/* turbopackIgnore: true */ file, "utf8"));
   } catch {
     return [];
   }
@@ -74,11 +74,11 @@ export function readStoredLogs(): AppLogEntry[] {
 
 export function readLogFileText(): string {
   const file = logFilePath();
-  if (!existsSync(file)) {
+  if (!existsSync(/* turbopackIgnore: true */ file)) {
     return "";
   }
   try {
-    return readFileSync(file, "utf8");
+    return readFileSync(/* turbopackIgnore: true */ file, "utf8");
   } catch {
     return "";
   }
@@ -103,8 +103,8 @@ export function appendLog(input: {
 
   try {
     const file = logFilePath();
-    mkdirSync(dirname(file), { recursive: true });
-    appendFileSync(file, formatLogText(entry), "utf8");
+    mkdirSync(/* turbopackIgnore: true */ dirname(file), { recursive: true });
+    appendFileSync(/* turbopackIgnore: true */ file, formatLogText(entry), "utf8");
     return entry;
   } catch {
     return null;
