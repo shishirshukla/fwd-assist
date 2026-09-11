@@ -162,6 +162,24 @@ export function letterSubmitPayload(fields: LetterSubmitFields): LetterSubmitFie
   };
 }
 
+export function dummyLetterSubmitFields(
+  overrides: Partial<LetterSubmitFields> = {},
+): LetterSubmitFields {
+  const today = toYyyyMmDd(undefined);
+  return letterSubmitPayload({
+    receivingDate: today,
+    senderOffice: "debug@forward-guard.local",
+    sendName: "Forward Guard debug",
+    letterNo: "NA",
+    letterDate: today,
+    letterDesc: "Forward Guard dummy letter submit",
+    department: "TEST",
+    priority: "NA",
+    EntryBy: "BOD",
+    ...overrides,
+  });
+}
+
 export function buildLetterSubmitUrl(baseUrl: string): string {
   const url = new URL(baseUrl);
   url.search = "";
@@ -180,6 +198,8 @@ function flattenError(error: unknown): { message: string; details: Record<string
         code: nodeErr.code,
         errno: nodeErr.errno,
         syscall: nodeErr.syscall,
+        address: (nodeErr as NodeJS.ErrnoException & { address?: string }).address,
+        port: (nodeErr as NodeJS.ErrnoException & { port?: number }).port,
       });
       current = nodeErr.cause;
     } else {
@@ -214,17 +234,21 @@ function postJson(
     const options: RequestOptions = {
       protocol: url.protocol,
       hostname: url.hostname,
+      servername: url.hostname,
       port: url.port || (url.protocol === "https:" ? 443 : 80),
       path: `${url.pathname}${url.search}`,
       method: "POST",
-      family: 4,
       timeout: timeoutMs,
       rejectUnauthorized: !insecureTls,
+      minVersion: "TLSv1.2",
+      ALPNProtocols: ["http/1.1"],
       headers: {
         "Content-Type": "application/json",
         Accept: "application/json, text/plain, */*",
-        "User-Agent": "ForwardGuard/1.0",
+        "User-Agent":
+          "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36",
         "Content-Length": Buffer.byteLength(body),
+        Connection: "close",
       },
     };
 
@@ -234,6 +258,7 @@ function postJson(
         chunks.push(Buffer.isBuffer(chunk) ? chunk : Buffer.from(chunk));
       });
       res.on("end", () => {
+        clearTimeout(timer);
         resolvePromise({
           status: res.statusCode || 0,
           text: Buffer.concat(chunks).toString("utf8").slice(0, 20000),
@@ -241,17 +266,28 @@ function postJson(
       });
     });
 
+    const timer = setTimeout(() => {
+      req.destroy(
+        new Error(
+          `ETIMEDOUT: no response from ${url.hostname}:${options.port} after ${timeoutMs}ms`,
+        ),
+      );
+    }, timeoutMs);
+
     req.on("socket", (socket) => {
       socket.setTimeout(timeoutMs);
     });
     req.on("timeout", () => {
       req.destroy(
         new Error(
-          `ETIMEDOUT: connection timed out after ${timeoutMs}ms to ${url.hostname}:${options.port}. This Node host cannot reach the letter API. Run Forward Guard on the bank network (WSL + ngrok), or whitelist this server's outbound IP on the bank firewall.`,
+          `ETIMEDOUT: no response from ${url.hostname}:${options.port} after ${timeoutMs}ms`,
         ),
       );
     });
-    req.on("error", reject);
+    req.on("error", (error) => {
+      clearTimeout(timer);
+      reject(error);
+    });
     req.write(body);
     req.end();
   });
@@ -335,10 +371,7 @@ export async function submitLetter(
     return result;
   } catch (error) {
     const serialized = flattenError(error);
-    let message = `Letter API request failed: ${serialized.message}`;
-    if (/ETIMEDOUT|timed out|ECONNRESET|ENETUNREACH|EHOSTUNREACH|fetch failed/i.test(message)) {
-      message += ` Check GET /api/letter-health on this same host.`;
-    }
+    const message = `Letter API request failed: ${serialized.message}`;
     appendLog({
       level: "error",
       source: "letter-submit",

@@ -39,7 +39,6 @@ In Railway → **Variables**:
 | --- | --- | --- |
 | `PUBLIC_BASE_URL` | `https://fwd-assist-production.up.railway.app` | **Yes** — use your exact HTTPS URL |
 | `LETTER_SUBMIT_URL` | Override letter API base URL | No — defaults to the pensioner `submit-letter` API |
-| `LETTER_SUBMIT_TLS_INSECURE` | `1` if the bank HTTPS cert is untrusted | No |
 | `LETTER_SUBMIT_TIMEOUT_MS` | Outbound timeout in ms (default `30000`) | No |
 
 Railway also sets `RAILWAY_PUBLIC_DOMAIN` at **runtime** as a fallback, but `PUBLIC_BASE_URL` is more reliable (especially with custom domains).
@@ -74,6 +73,7 @@ If `PUBLIC_BASE_URL` is missing on Railway, the app **fails to start** with a cl
 | `https://YOUR-APP.up.railway.app/api/logs?format=text` | Raw log file |
 | `https://YOUR-APP.up.railway.app/captures` | Human-readable capture log |
 | `https://YOUR-APP.up.railway.app/api/letter-health` | DNS/TCP/TLS probe of `eloan.cgbankmobile.in` |
+| `https://YOUR-APP.up.railway.app/api/letter-dummy` | Node POSTs dummy JSON to submit-letter; returns status, timing, and body |
 
 ### Quick check
 
@@ -98,7 +98,6 @@ If `manifest.xml` still shows `localhost`, `PUBLIC_BASE_URL` is not set or the r
 | App won't start on Railway | Deploy logs: missing `PUBLIC_BASE_URL` — add the variable |
 | Add-in install fails | Confirm icon/taskpane URLs load in a browser |
 | Domain changed | Update `PUBLIC_BASE_URL`, redeploy, remove old add-in, sideload new manifest |
-| `Letter API request failed: fetch failed` | The add-in host cannot open `eloan.cgbankmobile.in:443` (typical on Railway). Open `/api/letter-health`. Run the Node app on a network that can reach that host, or ask the bank to allow this server IP. |
 
 ## Local development vs Railway
 

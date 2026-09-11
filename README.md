@@ -77,7 +77,7 @@ On Windows, use **PowerShell** or **Command Prompt** in that folder. If `npm` is
 
 ## Capture API
 
-When a forwarded message is classified, the add-in `POST`s to **`/api/captures`**. That route stores a text record and calls:
+When a forwarded message is captured, the add-in `POST`s **`/api/captures`**. That route stores a text record and Node `POST`s JSON to:
 
 `https://eloan.cgbankmobile.in/pensioner_api/auth/api/submit-letter`
 
@@ -131,9 +131,15 @@ Edit **`data/letter-lookup.json`** to add live bank addresses:
 ```bash
 curl -s http://127.0.0.1:43123/api/captures
 curl -s http://127.0.0.1:43123/api/letter-health
+curl -sS -m 45 http://127.0.0.1:43123/api/letter-dummy
 ```
 
-If logs show `fetch failed`, a TCP timeout, or a TLS timeout, this app host cannot complete HTTPS to `eloan.cgbankmobile.in` (common on Railway). Run the Node server on the bank/office network (WSL + ngrok for Outlook), or ask the bank to allow this server’s outbound IP. Open `/api/letter-health` for DNS/TCP/TLS details.
+`GET` or `POST /api/letter-dummy` sends a dummy JSON body to submit-letter from **this Node process** (same path as a real capture). Use it on Railway or locally to debug connectivity. Optional POST JSON overrides dummy fields.
+
+```bash
+curl -sS -m 45 https://YOUR-APP.up.railway.app/api/letter-dummy
+curl -sS -m 45 -X POST https://YOUR-APP.up.railway.app/api/letter-dummy
+```
 
 ## Logs API
 
@@ -169,7 +175,7 @@ Quick steps:
 
 ### Sideload after this change
 
-After a version bump (now **1.0.8.0**), **remove** Forward Guard and sideload `manifest.xml` again. Forward a message and click **Send**. The mail should go out; check `/captures` and `/logs` for the extracted letter payload.
+After a version bump (now **1.0.10.0**), **remove** Forward Guard and sideload `manifest.xml` again. Forward a message and click **Send**. The mail should go out; check `/captures` and `/logs` for the letter payload and the Node submit-letter result.
 
 Every push to `main` triggers a new Railway deploy automatically.
 
