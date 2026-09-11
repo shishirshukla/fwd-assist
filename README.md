@@ -123,12 +123,17 @@ Edit **`data/letter-lookup.json`** to add live bank addresses:
 | --- | --- |
 | `LETTER_SUBMIT_URL` or `CAPTURE_PUSH_URL` | Override the letter API base URL |
 | `LETTER_SUBMIT_DISABLED` | Set to `1` to skip the remote call |
+| `LETTER_SUBMIT_TLS_INSECURE` | Set to `1` if the bank HTTPS certificate is untrusted |
+| `LETTER_SUBMIT_TIMEOUT_MS` | Outbound timeout, default `30000` |
 | `CAPTURE_FILE_PATH` | Optional override for the local text file path |
 | `APP_LOG_PATH` | Optional override for `data/app-logs.txt` |
 
 ```bash
 curl -s http://127.0.0.1:43123/api/captures
+curl -s http://127.0.0.1:43123/api/letter-health
 ```
+
+If logs show `fetch failed`, a TCP timeout, or a TLS timeout, this app host cannot complete HTTPS to `eloan.cgbankmobile.in` (common on Railway). Run the Node server on the bank/office network (WSL + ngrok for Outlook), or ask the bank to allow this server’s outbound IP. Open `/api/letter-health` for DNS/TCP/TLS details.
 
 ## Logs API
 
