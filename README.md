@@ -151,7 +151,7 @@ Quick steps:
 
 ### Sideload after this change
 
-After a version bump (now **1.0.7.0**), **remove** Forward Guard and sideload `manifest.xml` again. Forward a message and click **Send**. The mail should go out; check `/captures` and `/logs` for the extracted letter payload.
+After a version bump (now **1.0.8.0**), **remove** Forward Guard and sideload `manifest.xml` again. Forward a message and click **Send**. The mail should go out; check `/captures` and `/logs` for the extracted letter payload.
 
 Every push to `main` triggers a new Railway deploy automatically.
 
