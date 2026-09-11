@@ -178,6 +178,10 @@
               <span class="hint">On Send, the add-in checks whether this is a forward.</span>
             </div>
             <label class="field">
+              <span>From</span>
+              <input id="from" placeholder="Your address" value="you@contoso.com" autocomplete="off" />
+            </label>
+            <label class="field">
               <span>To</span>
               <input id="to" placeholder="Add recipients" value="legal@contoso.com" autocomplete="off" />
             </label>
@@ -247,6 +251,7 @@ Please review the attached vendor terms before Friday.`;
 
       const els = {
         to: document.getElementById("to"),
+        from: document.getElementById("from"),
         cc: document.getElementById("cc"),
         subject: document.getElementById("subject"),
         body: document.getElementById("body"),
@@ -290,6 +295,7 @@ Please review the attached vendor terms before Friday.`;
         state.mode = "forward";
         state.classification = null;
         els.to.value = "legal@contoso.com";
+        els.from.value = "you@contoso.com";
         els.cc.value = "records@contoso.com";
         els.subject.value = "FW: Q3 vendor contract";
         els.body.value = "Hi Legal,\n\nPassing this along for review.\n\n" + ORIGINAL;
@@ -304,6 +310,7 @@ Please review the attached vendor terms before Friday.`;
         state.mode = "new";
         state.classification = null;
         els.to.value = "";
+        els.from.value = "you@contoso.com";
         els.cc.value = "";
         els.subject.value = "";
         els.body.value = "";
@@ -395,6 +402,8 @@ Please review the attached vendor terms before Friday.`;
               messageBody: els.body.value,
               toEmailAddresses: ForwardGuardCapture.splitAddresses(els.to.value),
               ccEmailAddresses: ForwardGuardCapture.splitAddresses(els.cc.value),
+              originalToEmailAddresses: parsed.originalToEmailAddresses,
+              forwardedByEmail: els.from.value,
               classification: state.classification,
             },
             finishSend,

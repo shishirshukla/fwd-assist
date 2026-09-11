@@ -77,22 +77,39 @@ On Windows, use **PowerShell** or **Command Prompt** in that folder. If `npm` is
 
 ## Capture API
 
-When a forwarded message is classified, the add-in (and the simulator) `POST` this payload to **`/api/captures`**:
+When a forwarded message is classified, the add-in `POST`s to **`/api/captures`**. That route stores a text record and calls:
 
-- Original Email Date
-- Sender Email ID
-- Sender Name
-- Subject
-- Message Body
-- TO Email addresses
-- CC Email addresses
+`https://eloan.cgbankmobile.in/pensioner_api/auth/api/submit-letter`
 
-Records are appended to **`data/forward-captures.txt`**. Later, set these environment variables to also push each record to an external API:
+with query-string parameters:
+
+| Query param | Source |
+| --- | --- |
+| `receivingDate` | Original email date as `yyyy-mm-dd` |
+| `letterDate` | Same as `receivingDate` |
+| `senderOffice` | Original sender email, or `NA` |
+| `sendName` | Original sender name, or `NA` |
+| `letterNo` | Always `NA` |
+| `letterDesc` | Subject line |
+| `priority` | Priority from the classification form |
+| `department` | Lookup of the forward **To** address in `data/letter-lookup.json` |
+| `EntryBy` | Lookup of the forward **From** address (mailbox user) in `data/letter-lookup.json` |
+
+Edit **`data/letter-lookup.json`** to add live bank addresses:
+
+```json
+{
+  "departmentByToEmail": { "it@yourbank.in": "IT" },
+  "entryByFromEmail": { "officer@yourbank.in": "BOD" },
+  "defaults": { "department": "NA", "entryBy": "NA" }
+}
+```
 
 | Variable | Purpose |
 | --- | --- |
-| `CAPTURE_PUSH_URL` | Optional HTTPS endpoint that accepts the same JSON |
-| `CAPTURE_PUSH_TOKEN` | Optional `Bearer` token for that endpoint |
+| `LETTER_SUBMIT_URL` or `CAPTURE_PUSH_URL` | Override the letter API base URL |
+| `LETTER_SUBMIT_DISABLED` | Set to `1` to skip the remote call |
+| `LETTER_SUBMIT_METHOD` | `GET` (default) or `POST` |
 | `CAPTURE_FILE_PATH` | Optional override for the local text file path |
 
 ```bash
@@ -248,7 +265,9 @@ Outlook add-ins must be served over **HTTPS**. Point every `https://localhost:43
 | `public/taskpane.html` | Classification form hosted in Outlook |
 | `public/capture.js` | Collects sender/date/body/TO/CC and POSTs `/api/captures` |
 | `public/simulator.html` | Browser simulator of the Send flow |
-| `app/api/captures/route.ts` | Stores captures in `data/forward-captures.txt` |
+| `lib/letter-submit.ts` | Maps capture fields and calls submit-letter |
+| `app/api/captures/route.ts` | Stores captures and submits the letter API |
+| `data/letter-lookup.json` | TO → department and From → EntryBy dictionaries |
 | `scripts/set-manifest-url.mjs` | Rewrite manifest URLs for your HTTPS tunnel |
 | `scripts/inject-manifest-url.mjs` | Inject Railway/production URLs at build time |
 | `docs/RAILWAY.md` | Deploy from GitHub to Railway (no ngrok) |

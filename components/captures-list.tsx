@@ -52,9 +52,10 @@ export function CapturesList() {
           <h1 className="text-lg font-semibold">Forward captures</h1>
           <p className="mt-1 text-sm text-muted-foreground">
             Each classified forward is stored in{" "}
-            <code className="text-xs">data/forward-captures.txt</code>. When you
-            set <code className="text-xs">CAPTURE_PUSH_URL</code>, new records
-            are also posted to that API.
+            <code className="text-xs">data/forward-captures.txt</code> and
+            submitted to the pensioner letter API. Edit{" "}
+            <code className="text-xs">data/letter-lookup.json</code> to map TO
+            addresses to department and FROM addresses to EntryBy.
           </p>
         </div>
         <div className="flex gap-2">
@@ -72,8 +73,8 @@ export function CapturesList() {
 
       {data ? (
         <p className="text-sm text-muted-foreground">
-          {data.count} stored · remote push{" "}
-          {data.pushUrlConfigured ? "configured" : "not configured yet"}
+          {data.count} stored · letter API{" "}
+          {data.pushUrlConfigured ? "enabled" : "disabled"}
         </p>
       ) : null}
 
@@ -119,13 +120,17 @@ export function CapturesList() {
               <div>
                 <dt className="text-muted-foreground">TO</dt>
                 <dd className="break-all">
-                  {capture.toEmailAddresses.join(", ") || "—"}
+                  {(capture.toEmailAddresses || []).join(", ") || "—"}
                 </dd>
+              </div>
+              <div>
+                <dt className="text-muted-foreground">Forwarded by</dt>
+                <dd className="break-all">{capture.forwardedByEmail || "—"}</dd>
               </div>
               <div>
                 <dt className="text-muted-foreground">CC</dt>
                 <dd className="break-all">
-                  {capture.ccEmailAddresses.join(", ") || "—"}
+                  {(capture.ccEmailAddresses || []).join(", ") || "—"}
                 </dd>
               </div>
             </dl>
@@ -141,6 +146,42 @@ export function CapturesList() {
                   {capture.classification.category}
                 </Badge>
               </div>
+            ) : null}
+            {capture.letterSubmit ? (
+              <dl className="grid gap-2 rounded-lg bg-muted/50 p-3 text-sm sm:grid-cols-2">
+                <div className="sm:col-span-2 font-medium">Letter API fields</div>
+                <div>
+                  <dt className="text-muted-foreground">receivingDate / letterDate</dt>
+                  <dd>{capture.letterSubmit.receivingDate}</dd>
+                </div>
+                <div>
+                  <dt className="text-muted-foreground">priority</dt>
+                  <dd>{capture.letterSubmit.priority}</dd>
+                </div>
+                <div>
+                  <dt className="text-muted-foreground">department</dt>
+                  <dd>{capture.letterSubmit.department}</dd>
+                </div>
+                <div>
+                  <dt className="text-muted-foreground">EntryBy</dt>
+                  <dd>{capture.letterSubmit.EntryBy}</dd>
+                </div>
+                <div>
+                  <dt className="text-muted-foreground">senderOffice</dt>
+                  <dd className="break-all">{capture.letterSubmit.senderOffice}</dd>
+                </div>
+                <div>
+                  <dt className="text-muted-foreground">sendName</dt>
+                  <dd>{capture.letterSubmit.sendName}</dd>
+                </div>
+              </dl>
+            ) : null}
+            {capture.remotePush?.attempted ? (
+              <p className="text-xs text-muted-foreground break-all">
+                Letter API {capture.remotePush.ok ? "accepted" : "failed"}
+                {capture.remotePush.status ? ` (${capture.remotePush.status})` : ""}
+                {capture.remotePush.error ? ` — ${capture.remotePush.error}` : ""}
+              </p>
             ) : null}
             <pre className="max-h-48 overflow-auto rounded-lg bg-muted p-3 text-xs whitespace-pre-wrap">
               {capture.messageBody || "(empty body)"}

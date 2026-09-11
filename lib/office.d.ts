@@ -9,6 +9,10 @@ declare global {
     const context: {
       mailbox: {
         item?: MailboxItem;
+        userProfile?: {
+          displayName?: string;
+          emailAddress?: string;
+        };
       };
     };
 

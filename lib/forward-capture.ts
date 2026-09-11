@@ -1,6 +1,13 @@
 import { mkdirSync, readFileSync, appendFileSync, existsSync } from "node:fs";
 import { dirname, resolve } from "node:path";
 
+import {
+  letterSubmitEnabled,
+  mapLetterSubmitFields,
+  submitLetter,
+  type LetterSubmitFields,
+} from "@/lib/letter-submit";
+
 export type ForwardCaptureInput = {
   originalEmailDate?: string;
   senderEmailId?: string;
@@ -9,6 +16,8 @@ export type ForwardCaptureInput = {
   messageBody?: string;
   toEmailAddresses?: string[] | string;
   ccEmailAddresses?: string[] | string;
+  originalToEmailAddresses?: string[] | string;
+  forwardedByEmail?: string;
   classification?: {
     priority?: string;
     endDate?: string;
@@ -26,16 +35,21 @@ export type StoredForwardCapture = {
   messageBody: string;
   toEmailAddresses: string[];
   ccEmailAddresses: string[];
+  originalToEmailAddresses: string[];
+  forwardedByEmail: string;
   classification: {
     priority: string;
     endDate: string;
     category: string;
   } | null;
+  letterSubmit: LetterSubmitFields;
   remotePush: {
     attempted: boolean;
     ok: boolean;
     status: number | null;
     error: string | null;
+    url?: string;
+    responseText?: string;
   };
 };
 
@@ -62,6 +76,7 @@ export function parseOriginalForwardHeaders(body: string): {
   originalEmailDate: string;
   senderName: string;
   senderEmailId: string;
+  originalToEmailAddresses: string[];
 } {
   const text = (body || "").replace(/\r\n/g, "\n");
   const fromLine = matchHeader(text, "From");
@@ -71,6 +86,7 @@ export function parseOriginalForwardHeaders(body: string): {
     originalEmailDate: sentLine,
     senderName: from.name,
     senderEmailId: from.email,
+    originalToEmailAddresses: normalizeEmailList(matchHeader(text, "To")),
   };
 }
 
@@ -104,7 +120,7 @@ export function normalizeCapture(
       }
     : null;
 
-  return {
+  const base = {
     originalEmailDate: String(input.originalEmailDate || parsed.originalEmailDate || ""),
     senderEmailId: String(input.senderEmailId || parsed.senderEmailId || ""),
     senderName: String(input.senderName || parsed.senderName || ""),
@@ -112,11 +128,30 @@ export function normalizeCapture(
     messageBody: String(input.messageBody || ""),
     toEmailAddresses: normalizeEmailList(input.toEmailAddresses),
     ccEmailAddresses: normalizeEmailList(input.ccEmailAddresses),
+    originalToEmailAddresses:
+      normalizeEmailList(input.originalToEmailAddresses).length > 0
+        ? normalizeEmailList(input.originalToEmailAddresses)
+        : parsed.originalToEmailAddresses,
+    forwardedByEmail: String(input.forwardedByEmail || ""),
     classification:
       classification &&
       (classification.priority || classification.endDate || classification.category)
         ? classification
         : null,
+  };
+
+  return {
+    ...base,
+    letterSubmit: mapLetterSubmitFields({
+      originalEmailDate: base.originalEmailDate,
+      senderEmailId: base.senderEmailId,
+      senderName: base.senderName,
+      subject: base.subject,
+      priority: base.classification?.priority,
+      toEmailAddresses: base.toEmailAddresses,
+      originalToEmailAddresses: base.originalToEmailAddresses,
+      forwardedByEmail: base.forwardedByEmail,
+    }),
   };
 }
 
@@ -129,6 +164,10 @@ export function formatCaptureText(record: StoredForwardCapture): string {
     `Subject: ${record.subject}`,
     `TO Email addresses: ${record.toEmailAddresses.join(", ")}`,
     `CC Email addresses: ${record.ccEmailAddresses.join(", ")}`,
+    `Forwarded by: ${record.forwardedByEmail || ""}`,
+    `Letter department: ${record.letterSubmit?.department || ""}`,
+    `Letter EntryBy: ${record.letterSubmit?.EntryBy || ""}`,
+    `Letter dates: ${record.letterSubmit?.receivingDate || ""}`,
     "Message Body:",
     record.messageBody,
     `### JSON ${JSON.stringify(record)}`,
@@ -168,40 +207,19 @@ export function appendCapture(record: StoredForwardCapture): void {
 export async function pushCaptureIfConfigured(
   record: StoredForwardCapture,
 ): Promise<StoredForwardCapture["remotePush"]> {
-  const url = process.env.CAPTURE_PUSH_URL?.trim();
-  if (!url) {
+  if (!letterSubmitEnabled()) {
     return { attempted: false, ok: false, status: null, error: null };
   }
 
-  try {
-    const headers: Record<string, string> = {
-      "Content-Type": "application/json",
-    };
-    const token = process.env.CAPTURE_PUSH_TOKEN?.trim();
-    if (token) {
-      headers.Authorization = `Bearer ${token}`;
-    }
-
-    const response = await fetch(url, {
-      method: "POST",
-      headers,
-      body: JSON.stringify(record),
-    });
-
-    return {
-      attempted: true,
-      ok: response.ok,
-      status: response.status,
-      error: response.ok ? null : `Remote API returned ${response.status}`,
-    };
-  } catch (error) {
-    return {
-      attempted: true,
-      ok: false,
-      status: null,
-      error: error instanceof Error ? error.message : "Remote push failed",
-    };
-  }
+  const result = await submitLetter(record.letterSubmit);
+  return {
+    attempted: result.attempted,
+    ok: result.ok,
+    status: result.status,
+    error: result.error,
+    url: result.url,
+    responseText: result.responseText,
+  };
 }
 
 export function newCaptureId(): string {

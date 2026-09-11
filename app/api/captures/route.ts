@@ -6,6 +6,7 @@ import {
   readStoredCaptures,
   type ForwardCaptureInput,
 } from "@/lib/forward-capture";
+import { letterSubmitEnabled } from "@/lib/letter-submit";
 
 export const dynamic = "force-dynamic";
 
@@ -25,7 +26,7 @@ export async function GET() {
     {
       count: captures.length,
       captures: captures.slice().reverse(),
-      pushUrlConfigured: Boolean(process.env.CAPTURE_PUSH_URL?.trim()),
+      pushUrlConfigured: letterSubmitEnabled(),
     },
     { headers: cors },
   );
@@ -71,7 +72,12 @@ export async function POST(request: Request) {
   appendCapture(draft);
 
   return Response.json(
-    { ok: true, id: draft.id, remotePush: draft.remotePush },
+    {
+      ok: true,
+      id: draft.id,
+      letterSubmit: draft.letterSubmit,
+      remotePush: draft.remotePush,
+    },
     { status: 201, headers: cors },
   );
 }

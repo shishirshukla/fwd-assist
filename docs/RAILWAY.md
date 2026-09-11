@@ -38,8 +38,7 @@ In Railway → **Variables**:
 | Variable | Value | Required |
 | --- | --- | --- |
 | `PUBLIC_BASE_URL` | `https://fwd-assist-production.up.railway.app` | **Yes** — use your exact HTTPS URL |
-| `CAPTURE_PUSH_URL` | External API that should receive each capture | No — leave unset until you have the endpoint |
-| `CAPTURE_PUSH_TOKEN` | Bearer token for `CAPTURE_PUSH_URL` | No |
+| `LETTER_SUBMIT_URL` | Override letter API base URL | No — defaults to the pensioner `submit-letter` API |
 
 Railway also sets `RAILWAY_PUBLIC_DOMAIN` at **runtime** as a fallback, but `PUBLIC_BASE_URL` is more reliable (especially with custom domains).
 

@@ -1,0 +1,14 @@
+{
+  "notes": "Map TO addresses of the forwarded compose to department. Map FROM (the person forwarding, or original From) to EntryBy. Keys are matched case-insensitively, full email first then the local part before @.",
+  "departmentByToEmail": {
+    "legal@contoso.com": "IT"
+  },
+  "entryByFromEmail": {
+    "you@contoso.com": "BOD",
+    "bod@contoso.com": "BOD"
+  },
+  "defaults": {
+    "department": "NA",
+    "entryBy": "NA"
+  }
+}

@@ -28,6 +28,7 @@
       originalEmailDate: matchHeader(text, "Sent") || matchHeader(text, "Date"),
       senderName: from.name,
       senderEmailId: from.email,
+      originalToEmailAddresses: splitAddresses(matchHeader(text, "To")),
     };
   }
 
@@ -99,6 +100,8 @@
       messageBody: "",
       toEmailAddresses: [],
       ccEmailAddresses: [],
+      originalToEmailAddresses: [],
+      forwardedByEmail: "",
       classification: classification || null,
     };
     var composeFrom = { name: "", email: "" };
@@ -112,8 +115,22 @@
       finished = true;
       var parsed = parseOriginalFromBody(payload.messageBody);
       payload.originalEmailDate = parsed.originalEmailDate || payload.originalEmailDate;
-      payload.senderEmailId = parsed.senderEmailId || composeFrom.email;
-      payload.senderName = parsed.senderName || composeFrom.name;
+      payload.senderEmailId = parsed.senderEmailId;
+      payload.senderName = parsed.senderName;
+      payload.originalToEmailAddresses =
+        parsed.originalToEmailAddresses && parsed.originalToEmailAddresses.length
+          ? parsed.originalToEmailAddresses
+          : payload.originalToEmailAddresses;
+      payload.forwardedByEmail = composeFrom.email;
+      try {
+        var profile =
+          window.Office && Office.context && Office.context.mailbox
+            ? Office.context.mailbox.userProfile
+            : null;
+        if (profile && profile.emailAddress && !payload.forwardedByEmail) {
+          payload.forwardedByEmail = profile.emailAddress;
+        }
+      } catch (ignore) {}
       done(payload);
     }
 
