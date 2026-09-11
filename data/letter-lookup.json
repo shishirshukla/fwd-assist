@@ -1,11 +1,27 @@
 {
   "notes": "Map TO addresses of the forwarded compose to department. Map FROM (the person forwarding, or original From) to EntryBy. Keys are matched case-insensitively, full email first then the local part before @.",
   "departmentByToEmail": {
-    "legal@contoso.com": "IT"
+    "it.ho@cgb.bank.in": "IT",
+    "advacnes.ho@cgb.bank.in": "Advance",
+    "hr.ho@cgb.bank.in": "HR",
+    "accounts.ho@cgb.bank.in": "ACCOUNTS",
+    "audit.ho@cgb.bank.in": "Audit",
+    "vigilance.ho@cgb.bank.in": "Vigilance",
+    "npa.ho@cgb.bank.in": "NPA",
+    "planning.ho@cgb.bank.in": "Planning",
+    "cs.ho@cgb.bank.in": "CSD",
+    "fi.ho@cgb.bank.in": "FI",
+    "clpc.ho@cgb.bank.in": "CLPC",
+    "infra.ho@cgb.bank.in": "INFRA",
+    "rmd.ho@cgb.bank.in": "RMD",
+    "agm.credit.ho@cgb.bank.in": "AGMCredit",
+    "agm.operations.ho@cgb.bank.in": "AGMOps",
+    "agm.cdo@cgb.bank.in": "AGMCDO"
+    
   },
   "entryByFromEmail": {
-    "you@contoso.com": "BOD",
-    "bod@contoso.com": "BOD"
+    "chairman@cgb.bank.in": "BOD",
+    "cms.ho@cgb.bank.in": "CMS"
   },
   "defaults": {
     "department": "NA",
