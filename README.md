@@ -133,7 +133,7 @@ curl -s http://127.0.0.1:43123/api/captures
 curl -s http://127.0.0.1:43123/api/letter-health
 ```
 
-If logs show `fetch failed` or a TCP timeout, this app host cannot reach `eloan.cgbankmobile.in`. Run the server on the bank network (or whitelist the Railway/server IP). Open `/api/letter-health` to see DNS/TCP/TLS details.
+If logs show `fetch failed`, a TCP timeout, or a TLS timeout, this app host cannot complete HTTPS to `eloan.cgbankmobile.in` (common on Railway). Run the Node server on the bank/office network (WSL + ngrok for Outlook), or ask the bank to allow this server’s outbound IP. Open `/api/letter-health` for DNS/TCP/TLS details.
 
 ## Logs API
 
