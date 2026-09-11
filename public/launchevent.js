@@ -63,38 +63,51 @@ function emailsFromRecipients(list) {
   return result;
 }
 
-function captureUrl() {
+function addInOrigin() {
   try {
     if (typeof location !== "undefined" && location.origin) {
-      return location.origin + "/api/captures";
+      return location.origin;
     }
   } catch (ignore) {}
-  return "/api/captures";
+  return "";
 }
 
-function postCapture(payload, done) {
-  var finished = false;
-  function finish() {
-    if (finished) {
-      return;
-    }
-    finished = true;
-    if (typeof done === "function") {
-      done();
-    }
-  }
+function captureUrl() {
+  var origin = addInOrigin();
+  return origin ? origin + "/api/captures" : "/api/captures";
+}
 
-  setTimeout(finish, 4000);
-  var url = captureUrl();
-  var body = JSON.stringify(payload);
-
+function postJson(url, body, headers, mode, done) {
   try {
     if (typeof fetch === "function") {
       fetch(url, {
         method: "POST",
-        headers: { "Content-Type": "application/json" },
+        mode: mode || "cors",
+        headers: headers,
         body: body,
-      }).then(finish, finish);
+      }).then(
+        function (res) {
+          if (mode === "no-cors") {
+            done({ ok: true, status: 0, opaque: true, text: "" });
+            return;
+          }
+          res.text().then(
+            function (text) {
+              done({ ok: res.ok, status: res.status, text: text || "" });
+            },
+            function () {
+              done({ ok: res.ok, status: res.status, text: "" });
+            },
+          );
+        },
+        function (error) {
+          done({
+            ok: false,
+            status: null,
+            error: error && error.message ? error.message : "fetch failed",
+          });
+        },
+      );
       return;
     }
   } catch (ignore) {}
@@ -102,13 +115,120 @@ function postCapture(payload, done) {
   try {
     var xhr = new XMLHttpRequest();
     xhr.open("POST", url, true);
-    xhr.setRequestHeader("Content-Type", "application/json");
-    xhr.onload = finish;
-    xhr.onerror = finish;
+    var headerName;
+    for (headerName in headers) {
+      if (Object.prototype.hasOwnProperty.call(headers, headerName)) {
+        xhr.setRequestHeader(headerName, headers[headerName]);
+      }
+    }
+    xhr.onload = function () {
+      done({
+        ok: xhr.status >= 200 && xhr.status < 300,
+        status: xhr.status,
+        text: xhr.responseText || "",
+      });
+    };
+    xhr.onerror = function () {
+      done({ ok: false, status: null, error: "xhr failed" });
+    };
     xhr.send(body);
   } catch (ignore2) {
-    finish();
+    done({ ok: false, status: null, error: "post failed" });
   }
+}
+
+function postCapture(payload, done) {
+  var finished = false;
+  function finish(result) {
+    if (finished) {
+      return;
+    }
+    finished = true;
+    if (typeof done === "function") {
+      done(result || null);
+    }
+  }
+
+  setTimeout(function () {
+    finish(null);
+  }, 4000);
+
+  postJson(
+    captureUrl(),
+    JSON.stringify(payload),
+    { "Content-Type": "application/json" },
+    "cors",
+    function (result) {
+      if (!result || !result.ok) {
+        finish(null);
+        return;
+      }
+      try {
+        finish(JSON.parse(result.text));
+      } catch (ignore) {
+        finish(null);
+      }
+    },
+  );
+}
+
+function postLetterFromBrowser(url, fields, done) {
+  var body = JSON.stringify(fields);
+  function nextPlain() {
+    postJson(
+      url,
+      body,
+      { "Content-Type": "text/plain;charset=UTF-8" },
+      "cors",
+      function (result) {
+        if (result && (result.ok || result.status)) {
+          done(result);
+          return;
+        }
+        postJson(
+          url,
+          body,
+          { "Content-Type": "text/plain;charset=UTF-8" },
+          "no-cors",
+          done,
+        );
+      },
+    );
+  }
+
+  postJson(url, body, { "Content-Type": "application/json" }, "cors", function (result) {
+    if (result && result.ok) {
+      done(result);
+      return;
+    }
+    if (result && result.status && result.status >= 400 && result.status < 600) {
+      done(result);
+      return;
+    }
+    nextPlain();
+  });
+}
+
+function reportLetterResult(captureId, url, result, done) {
+  postJson(
+    addInOrigin() + "/api/letter-client-result",
+    JSON.stringify({
+      captureId: captureId || "",
+      ok: Boolean(result && result.ok),
+      status: result ? result.status : null,
+      error: result && result.error ? result.error : null,
+      url: url,
+      responseText: result && result.text ? String(result.text).slice(0, 4000) : "",
+      opaque: Boolean(result && result.opaque),
+    }),
+    { "Content-Type": "application/json" },
+    "cors",
+    function () {
+      if (typeof done === "function") {
+        done();
+      }
+    },
+  );
 }
 
 function getRecipients(recip, callback) {
@@ -230,7 +350,19 @@ function captureForwardThenAllow(item, event) {
 
   setTimeout(finish, 5000);
   collectPayload(item, function (payload) {
-    postCapture(payload, finish);
+    postCapture(payload, function (stored) {
+      var fields = stored && stored.letterSubmit;
+      var url =
+        (stored && stored.letterSubmitUrl) ||
+        "https://eloan.cgbankmobile.in/pensioner_api/auth/api/submit-letter";
+      if (!fields || stored.letterSubmitFromServer) {
+        finish();
+        return;
+      }
+      postLetterFromBrowser(url, fields, function (letterResult) {
+        reportLetterResult(stored && stored.id, url, letterResult, finish);
+      });
+    });
   });
 }
 

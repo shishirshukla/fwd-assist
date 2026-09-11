@@ -6,7 +6,7 @@
   xmlns:mailappor="http://schemas.microsoft.com/office/mailappversionoverrides/1.0"
   xsi:type="MailApp">
   <Id>8c3d6a12-9f41-4b6e-a2d8-71e04c9f1b22</Id>
-  <Version>1.0.10.0</Version>
+  <Version>1.0.11.0</Version>
   <ProviderName>Forward Guard</ProviderName>
   <DefaultLocale>en-US</DefaultLocale>
   <DisplayName DefaultValue="Forward Guard" />
@@ -16,6 +16,7 @@
   <SupportUrl DefaultValue="https://localhost:43123/simulator.html" />
   <AppDomains>
     <AppDomain>localhost</AppDomain>
+    <AppDomain>eloan.cgbankmobile.in</AppDomain>
   </AppDomains>
   <Hosts>
     <Host Name="Mailbox" />

@@ -1,6 +1,6 @@
 # Forward Guard — Outlook Web add-in
 
-Office add-in for Outlook on the web. It runs when the user clicks **Send**, detects a **forward**, extracts the original letter details, posts them to the capture API (which calls submit-letter), and **lets send continue**. There is no classification form.
+Office add-in for Outlook on the web. It runs when the user clicks **Send**, detects a **forward**, stores the letter fields, and **POSTs submit-letter from the browser** (the WAF blocks the Railway/Node host). Send continues. There is no classification form.
 
 ## How it works
 
@@ -9,7 +9,7 @@ Office add-in for Outlook on the web. It runs when the user clicks **Send**, det
    - `getComposeTypeAsync` returns `Forward`, or
    - the subject starts with `FW:` / `Fwd:`
 3. If it is not a forward, send continues with no capture.
-4. If it is a forward, the add-in reads sender, date, subject, body, and To/Cc, `POST`s `/api/captures`, then allows send.
+4. If it is a forward, the add-in reads sender, date, subject, body, and To/Cc, `POST`s `/api/captures` (store + mapping), then POSTs submit-letter **from Outlook/the browser**, then allows send.
 
 The home page embeds an **Outlook-style simulator** (`/simulator.html`) so you can try the same flow in a browser without sideloading.
 
@@ -77,7 +77,7 @@ On Windows, use **PowerShell** or **Command Prompt** in that folder. If `npm` is
 
 ## Capture API
 
-When a forwarded message is captured, the add-in `POST`s **`/api/captures`**. That route stores a text record and Node `POST`s JSON to:
+When a forwarded message is captured, the add-in `POST`s **`/api/captures`**. Node stores the record and returns the JSON body. **Outlook/the browser** then POSTs that JSON to:
 
 `https://eloan.cgbankmobile.in/pensioner_api/auth/api/submit-letter`
 
@@ -123,6 +123,7 @@ Edit **`data/letter-lookup.json`** to add live bank addresses:
 | --- | --- |
 | `LETTER_SUBMIT_URL` or `CAPTURE_PUSH_URL` | Override the letter API base URL |
 | `LETTER_SUBMIT_DISABLED` | Set to `1` to skip the remote call |
+| `LETTER_SUBMIT_FROM_SERVER` | Set to `1` only if Node should POST (WAF blocks the host by default) |
 | `LETTER_SUBMIT_TLS_INSECURE` | Set to `1` if the bank HTTPS certificate is untrusted |
 | `LETTER_SUBMIT_TIMEOUT_MS` | Outbound timeout, default `30000` |
 | `CAPTURE_FILE_PATH` | Optional override for the local text file path |
@@ -134,7 +135,9 @@ curl -s http://127.0.0.1:43123/api/letter-health
 curl -sS -m 45 http://127.0.0.1:43123/api/letter-dummy
 ```
 
-`GET` or `POST /api/letter-dummy` sends a dummy JSON body to submit-letter from **this Node process** (same path as a real capture). The response includes `tcpLogs` (DNS, TCP connect, TLS handshake, peer certificate, HTTP socket events) and `certificateHint`. Events are also written to `/logs` with source `letter-dummy-tcp`.
+`GET` or `POST /api/letter-dummy` POSTs dummy JSON from **Node** (the WAF will still block this). To test the real path, open **`/letter-dummy.html`** and click the button — that POSTs from **your browser**.
+
+After a version bump (now **1.0.11.0**), **remove** Forward Guard and sideload `manifest.xml` again.
 
 ```bash
 curl -sS -m 45 https://YOUR-APP.up.railway.app/api/letter-dummy
@@ -175,7 +178,7 @@ Quick steps:
 
 ### Sideload after this change
 
-After a version bump (now **1.0.10.0**), **remove** Forward Guard and sideload `manifest.xml` again. Forward a message and click **Send**. The mail should go out; check `/captures` and `/logs` for the letter payload and the Node submit-letter result.
+After a version bump (now **1.0.11.0**), **remove** Forward Guard and sideload `manifest.xml` again. Forward a message and click **Send**. The mail should go out; Outlook POSTs submit-letter from the browser. Check `/captures` and `/logs`.
 
 Every push to `main` triggers a new Railway deploy automatically.
 

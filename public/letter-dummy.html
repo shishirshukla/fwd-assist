@@ -1,0 +1,109 @@
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>Forward Guard — browser letter submit</title>
+    <style>
+      body {
+        font-family: "Segoe UI", system-ui, sans-serif;
+        max-width: 720px;
+        margin: 24px auto;
+        padding: 0 16px;
+        color: #201f1e;
+      }
+      button {
+        font: inherit;
+        background: #0f6cbd;
+        color: #fff;
+        border: 0;
+        border-radius: 8px;
+        height: 36px;
+        padding: 0 14px;
+        cursor: pointer;
+      }
+      pre {
+        background: #f3f2f1;
+        padding: 12px;
+        border-radius: 8px;
+        overflow: auto;
+        white-space: pre-wrap;
+      }
+      p.muted { color: #605e5c; }
+    </style>
+  </head>
+  <body>
+    <h1>Browser letter submit</h1>
+    <p class="muted">
+      The WAF blocks the Railway/Node host. This page POSTs dummy JSON to submit-letter
+      from <strong>your browser</strong>.
+    </p>
+    <p>
+      <button id="run" type="button">Push dummy letter from this browser</button>
+    </p>
+    <pre id="out">Click the button to run.</pre>
+    <script>
+      const out = document.getElementById("out");
+      document.getElementById("run").addEventListener("click", async function () {
+        out.textContent = "Loading /api/letter-config…";
+        try {
+          const config = await fetch("/api/letter-config").then(function (res) {
+            return res.json();
+          });
+          const payload = config.dummyPayload;
+          const url = config.url;
+          out.textContent = "POSTing from browser to " + url + "\n" + JSON.stringify(payload, null, 2);
+          let result;
+          try {
+            const letterRes = await fetch(url, {
+              method: "POST",
+              headers: { "Content-Type": "application/json" },
+              body: JSON.stringify(payload),
+            });
+            const text = await letterRes.text();
+            result = { ok: letterRes.ok, status: letterRes.status, text: text, opaque: false };
+          } catch (error) {
+            try {
+              await fetch(url, {
+                method: "POST",
+                mode: "no-cors",
+                headers: { "Content-Type": "text/plain;charset=UTF-8" },
+                body: JSON.stringify(payload),
+              });
+              result = {
+                ok: true,
+                status: 0,
+                opaque: true,
+                text: "",
+                error: error && error.message ? error.message : String(error),
+              };
+            } catch (second) {
+              result = {
+                ok: false,
+                status: null,
+                opaque: false,
+                error: second && second.message ? second.message : String(second),
+              };
+            }
+          }
+          await fetch("/api/letter-client-result", {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({
+              captureId: "",
+              ok: result.ok,
+              status: result.status,
+              error: result.error || null,
+              url: url,
+              responseText: result.text || "",
+              opaque: Boolean(result.opaque),
+            }),
+          });
+          out.textContent = JSON.stringify({ url: url, payload: payload, result: result }, null, 2);
+        } catch (error) {
+          out.textContent = error && error.message ? error.message : String(error);
+        }
+      });
+    </script>
+  </body>
+</html>

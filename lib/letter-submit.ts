@@ -114,6 +114,19 @@ export function letterSubmitEnabled(): boolean {
   return process.env.LETTER_SUBMIT_DISABLED !== "1";
 }
 
+/** Set LETTER_SUBMIT_FROM_SERVER=1 to POST from Node. Default is browser/Outlook (WAF blocks the host). */
+export function letterSubmitFromServer(): boolean {
+  return process.env.LETTER_SUBMIT_FROM_SERVER === "1";
+}
+
+export function letterSubmitHost(): string {
+  try {
+    return new URL(letterSubmitBaseUrl()).hostname;
+  } catch {
+    return "eloan.cgbankmobile.in";
+  }
+}
+
 export function mapLetterSubmitFields(input: {
   originalEmailDate?: string;
   senderEmailId?: string;

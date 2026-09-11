@@ -64,14 +64,74 @@
       }
     }
 
-    setTimeout(finish, 5000);
+    setTimeout(finish, 8000);
 
     try {
       fetch("/api/captures", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify(payload),
-      }).then(finish, finish);
+      })
+        .then(function (res) {
+          return res.json();
+        })
+        .then(function (stored) {
+          if (!stored || !stored.letterSubmit || stored.letterSubmitFromServer) {
+            finish();
+            return;
+          }
+          var url = stored.letterSubmitUrl;
+          var body = JSON.stringify(stored.letterSubmit);
+          function report(result) {
+            fetch("/api/letter-client-result", {
+              method: "POST",
+              headers: { "Content-Type": "application/json" },
+              body: JSON.stringify({
+                captureId: stored.id,
+                ok: Boolean(result && result.ok),
+                status: result && typeof result.status === "number" ? result.status : null,
+                error: result && result.error ? result.error : null,
+                url: url,
+                responseText: result && result.text ? String(result.text).slice(0, 4000) : "",
+                opaque: Boolean(result && result.opaque),
+              }),
+            }).then(finish, finish);
+          }
+          fetch(url, {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: body,
+          }).then(
+            function (letterRes) {
+              letterRes.text().then(
+                function (text) {
+                  report({ ok: letterRes.ok, status: letterRes.status, text: text });
+                },
+                function () {
+                  report({ ok: letterRes.ok, status: letterRes.status, text: "" });
+                },
+              );
+            },
+            function (error) {
+              fetch(url, {
+                method: "POST",
+                mode: "no-cors",
+                headers: { "Content-Type": "text/plain;charset=UTF-8" },
+                body: body,
+              }).then(
+                function () {
+                  report({ ok: true, status: 0, opaque: true, text: "" });
+                },
+                function () {
+                  report({
+                    ok: false,
+                    error: error && error.message ? error.message : "letter fetch failed",
+                  });
+                },
+              );
+            },
+          );
+        }, finish);
     } catch (ignore) {
       finish();
     }

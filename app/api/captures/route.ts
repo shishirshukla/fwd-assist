@@ -8,7 +8,12 @@ import {
   type ForwardCaptureInput,
   type StoredForwardCapture,
 } from "@/lib/forward-capture";
-import { letterSubmitEnabled } from "@/lib/letter-submit";
+import {
+  buildLetterSubmitUrl,
+  letterSubmitBaseUrl,
+  letterSubmitEnabled,
+  letterSubmitFromServer,
+} from "@/lib/letter-submit";
 
 export const dynamic = "force-dynamic";
 
@@ -29,6 +34,8 @@ export async function GET() {
       count: captures.length,
       captures: captures.slice().reverse(),
       pushUrlConfigured: letterSubmitEnabled(),
+      letterSubmitFromServer: letterSubmitFromServer(),
+      letterSubmitUrl: buildLetterSubmitUrl(letterSubmitBaseUrl()),
     },
     { headers: cors },
   );
@@ -96,21 +103,34 @@ export async function POST(request: Request) {
   draft.remotePush = await pushCaptureIfConfigured(draft);
   appendCapture(draft);
 
-  appendLog({
-    level: draft.remotePush.ok ? "info" : "error",
-    source: "capture",
-    message: draft.remotePush.ok
-      ? `Letter API result for ${draft.id}: ${draft.remotePush.responseText || "(empty body)"}`
-      : `Letter API error for ${draft.id}: ${draft.remotePush.error || "unknown error"}${draft.remotePush.responseText ? ` | ${draft.remotePush.responseText}` : ""}`,
-    captureId: draft.id,
-    details: {
-      url: draft.remotePush.url,
-      status: draft.remotePush.status,
-      ok: draft.remotePush.ok,
-      error: draft.remotePush.error,
-      responseBody: draft.remotePush.responseText || "",
-    },
-  });
+  if (draft.remotePush.attempted) {
+    appendLog({
+      level: draft.remotePush.ok ? "info" : "error",
+      source: "capture",
+      message: draft.remotePush.ok
+        ? `Letter API result for ${draft.id}: ${draft.remotePush.responseText || "(empty body)"}`
+        : `Letter API error for ${draft.id}: ${draft.remotePush.error || "unknown error"}${draft.remotePush.responseText ? ` | ${draft.remotePush.responseText}` : ""}`,
+      captureId: draft.id,
+      details: {
+        url: draft.remotePush.url,
+        status: draft.remotePush.status,
+        ok: draft.remotePush.ok,
+        error: draft.remotePush.error,
+        responseBody: draft.remotePush.responseText || "",
+      },
+    });
+  } else {
+    appendLog({
+      level: "info",
+      source: "capture",
+      message: `Stored capture ${draft.id}. Letter POST runs in the browser (hosting provider is WAF-blocked).`,
+      captureId: draft.id,
+      details: {
+        url: draft.remotePush.url,
+        letterSubmit: draft.letterSubmit,
+      },
+    });
+  }
 
   appendLog({
     level: "info",
@@ -124,6 +144,8 @@ export async function POST(request: Request) {
       ok: true,
       id: draft.id,
       letterSubmit: draft.letterSubmit,
+      letterSubmitUrl: buildLetterSubmitUrl(letterSubmitBaseUrl()),
+      letterSubmitFromServer: letterSubmitFromServer(),
       remotePush: draft.remotePush,
     },
     { status: 201, headers: cors },
