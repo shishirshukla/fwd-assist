@@ -162,6 +162,24 @@ export function letterSubmitPayload(fields: LetterSubmitFields): LetterSubmitFie
   };
 }
 
+export function dummyLetterSubmitFields(
+  overrides: Partial<LetterSubmitFields> = {},
+): LetterSubmitFields {
+  const today = toYyyyMmDd(undefined);
+  return letterSubmitPayload({
+    receivingDate: today,
+    senderOffice: "debug@forward-guard.local",
+    sendName: "Forward Guard debug",
+    letterNo: "NA",
+    letterDate: today,
+    letterDesc: "Forward Guard dummy letter submit",
+    department: "TEST",
+    priority: "NA",
+    EntryBy: "BOD",
+    ...overrides,
+  });
+}
+
 export function buildLetterSubmitUrl(baseUrl: string): string {
   const url = new URL(baseUrl);
   url.search = "";
@@ -240,12 +258,21 @@ function postJson(
         chunks.push(Buffer.isBuffer(chunk) ? chunk : Buffer.from(chunk));
       });
       res.on("end", () => {
+        clearTimeout(timer);
         resolvePromise({
           status: res.statusCode || 0,
           text: Buffer.concat(chunks).toString("utf8").slice(0, 20000),
         });
       });
     });
+
+    const timer = setTimeout(() => {
+      req.destroy(
+        new Error(
+          `ETIMEDOUT: no response from ${url.hostname}:${options.port} after ${timeoutMs}ms`,
+        ),
+      );
+    }, timeoutMs);
 
     req.on("socket", (socket) => {
       socket.setTimeout(timeoutMs);
@@ -257,7 +284,10 @@ function postJson(
         ),
       );
     });
-    req.on("error", reject);
+    req.on("error", (error) => {
+      clearTimeout(timer);
+      reject(error);
+    });
     req.write(body);
     req.end();
   });

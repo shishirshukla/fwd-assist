@@ -73,6 +73,7 @@ If `PUBLIC_BASE_URL` is missing on Railway, the app **fails to start** with a cl
 | `https://YOUR-APP.up.railway.app/api/logs?format=text` | Raw log file |
 | `https://YOUR-APP.up.railway.app/captures` | Human-readable capture log |
 | `https://YOUR-APP.up.railway.app/api/letter-health` | DNS/TCP/TLS probe of `eloan.cgbankmobile.in` |
+| `https://YOUR-APP.up.railway.app/api/letter-dummy` | Node POSTs dummy JSON to submit-letter; returns status, timing, and body |
 
 ### Quick check
 

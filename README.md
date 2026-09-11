@@ -131,6 +131,14 @@ Edit **`data/letter-lookup.json`** to add live bank addresses:
 ```bash
 curl -s http://127.0.0.1:43123/api/captures
 curl -s http://127.0.0.1:43123/api/letter-health
+curl -sS -m 45 http://127.0.0.1:43123/api/letter-dummy
+```
+
+`GET` or `POST /api/letter-dummy` sends a dummy JSON body to submit-letter from **this Node process** (same path as a real capture). Use it on Railway or locally to debug connectivity. Optional POST JSON overrides dummy fields.
+
+```bash
+curl -sS -m 45 https://YOUR-APP.up.railway.app/api/letter-dummy
+curl -sS -m 45 -X POST https://YOUR-APP.up.railway.app/api/letter-dummy
 ```
 
 ## Logs API
