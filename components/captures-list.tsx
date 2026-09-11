@@ -95,9 +95,9 @@ export function CapturesList() {
           <CardHeader>
             <CardTitle>No captures yet</CardTitle>
             <CardDescription>
-              Classify a forwarded message in the simulator or Outlook. Save and
-              send writes Original Email Date, Sender, Subject, Body, and TO/CC
-              here.
+              Classify a forwarded message in the simulator or Outlook. Send
+              writes Original Email Date, Sender, Subject, Body, and TO/CC here
+              and calls the letter API.
             </CardDescription>
           </CardHeader>
         </Card>

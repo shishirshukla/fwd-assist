@@ -1,125 +1,237 @@
-/* Outlook OnMessageSend (Smart Alerts).
-   Do not open dialogs or the task pane from this handler. Those APIs are
-   unsupported here and can stop the add-in from opening later.
-   Outlook opens the pane when the user clicks Take Action / Open form,
-   using commandId that must match a ShowTaskpane button in the manifest. */
+/* OnMessageSend: if the message is a forward, capture fields and POST /api/captures,
+   then allow send. No form and no send block. */
 
 function isForwardedSubject(subject) {
   return /^(fw|fwd)\s*:/i.test((subject || "").trim());
 }
 
 function allowSend(event) {
-  event.completed({ allowEvent: true });
-}
-
-function completeBlock(event) {
-  event.completed({
-    allowEvent: false,
-    errorMessage:
-      "This is a forwarded email. Click Open form, complete Priority, End Date, and Category, then save to send.",
-    errorMessageMarkdown:
-      "This is a **forwarded email**.\n\nClick **Open form**, fill Priority, End Date, and Category, then save to send.",
-    cancelLabel: "Open form",
-    commandId: "msgComposeOpenFormButton",
-    contextData: JSON.stringify({ reason: "forward-classification" }),
-  });
-}
-
-function addInsight(item, callback) {
-  var done = typeof callback === "function" ? callback : function () {};
-  if (!item.notificationMessages || !item.notificationMessages.replaceAsync) {
-    done();
-    return;
-  }
-
   try {
-    item.notificationMessages.replaceAsync(
-      "ForwardGuardNotice",
-      {
-        type: "insightMessage",
-        message: "Fill Priority, End Date, and Category, then save to send.",
-        icon: "Icon16",
-        actions: [
-          {
-            actionText: "Open form",
-            actionType: "showTaskPane",
-            commandId: "msgComposeOpenPaneButton",
-            contextData: "{\"reason\":\"forward-classification\"}",
-          },
-        ],
-      },
-      function (result) {
-        if (result && result.status === Office.AsyncResultStatus.Succeeded) {
-          done();
-          return;
-        }
-        try {
-          item.notificationMessages.replaceAsync(
-            "ForwardGuardNotice",
-            {
-              type: "errorMessage",
-              message:
-                "Forwarded email: click Open form on the Send dialog, or Apps → Forward Guard.",
-            },
-            function () {
-              done();
-            }
-          );
-        } catch (ignore) {
-          done();
-        }
-      }
-    );
-  } catch (ignore) {
-    done();
-  }
+    event.completed({ allowEvent: true });
+  } catch (ignore) {}
 }
 
-function blockSend(item, event) {
+function parseMailbox(line) {
+  var trimmed = (line || "").trim();
+  var angled = trimmed.match(/^(.*?)\s*<([^>]+)>/);
+  if (angled) {
+    return {
+      name: angled[1].replace(/^["']|["']$/g, "").trim(),
+      email: angled[2].trim(),
+    };
+  }
+  if (/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(trimmed)) {
+    return { name: "", email: trimmed };
+  }
+  return { name: trimmed, email: "" };
+}
+
+function matchHeader(text, name) {
+  var re = new RegExp("^" + name + ":\\s*(.+)$", "im");
+  var match = text.match(re);
+  return match ? match[1].trim() : "";
+}
+
+function splitAddresses(value) {
+  return (value || "")
+    .split(/[;,]+/)
+    .map(function (part) {
+      return parseMailbox(part).email || part.trim();
+    })
+    .filter(Boolean);
+}
+
+function parseOriginalFromBody(body) {
+  var text = (body || "").replace(/\r\n/g, "\n");
+  var from = parseMailbox(matchHeader(text, "From"));
+  return {
+    originalEmailDate: matchHeader(text, "Sent") || matchHeader(text, "Date"),
+    senderName: from.name,
+    senderEmailId: from.email,
+    originalToEmailAddresses: splitAddresses(matchHeader(text, "To")),
+  };
+}
+
+function emailsFromRecipients(list) {
+  var result = [];
+  (list || []).forEach(function (entry) {
+    var email = entry && (entry.emailAddress || entry.email || "");
+    if (email) {
+      result.push(email);
+    }
+  });
+  return result;
+}
+
+function captureUrl() {
+  try {
+    if (typeof location !== "undefined" && location.origin) {
+      return location.origin + "/api/captures";
+    }
+  } catch (ignore) {}
+  return "/api/captures";
+}
+
+function postCapture(payload, done) {
   var finished = false;
   function finish() {
     if (finished) {
       return;
     }
     finished = true;
-    completeBlock(event);
+    if (typeof done === "function") {
+      done();
+    }
   }
 
-  addInsight(item, finish);
-  setTimeout(finish, 1200);
-}
+  setTimeout(finish, 4000);
+  var url = captureUrl();
+  var body = JSON.stringify(payload);
 
-function metadataIsComplete(customProps) {
-  return customProps.get("forwardMetadataComplete") === "true";
-}
-
-function loadCustomPropertiesThenDecide(item, event) {
-  item.loadCustomPropertiesAsync(function (result) {
-    if (result.status === Office.AsyncResultStatus.Succeeded) {
-      if (metadataIsComplete(result.value)) {
-        allowSend(event);
-        return;
-      }
+  try {
+    if (typeof fetch === "function") {
+      fetch(url, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: body,
+      }).then(finish, finish);
+      return;
     }
-    blockSend(item, event);
+  } catch (ignore) {}
+
+  try {
+    var xhr = new XMLHttpRequest();
+    xhr.open("POST", url, true);
+    xhr.setRequestHeader("Content-Type", "application/json");
+    xhr.onload = finish;
+    xhr.onerror = finish;
+    xhr.send(body);
+  } catch (ignore2) {
+    finish();
+  }
+}
+
+function getRecipients(recip, callback) {
+  if (!recip || typeof recip.getAsync !== "function") {
+    callback([]);
+    return;
+  }
+  recip.getAsync(function (result) {
+    if (!result || result.status !== Office.AsyncResultStatus.Succeeded) {
+      callback([]);
+      return;
+    }
+    callback(emailsFromRecipients(result.value));
   });
 }
 
-function checkCustomPropertiesThenDecide(item, event) {
-  if (item.sessionData && typeof item.sessionData.getAsync === "function") {
-    item.sessionData.getAsync("forwardMetadataComplete", function (sessionResult) {
-      if (
-        sessionResult.status === Office.AsyncResultStatus.Succeeded &&
-        sessionResult.value === "true"
-      ) {
-        allowSend(event);
-        return;
+function collectPayload(item, done) {
+  var payload = {
+    originalEmailDate: "",
+    senderEmailId: "",
+    senderName: "",
+    subject: "",
+    messageBody: "",
+    toEmailAddresses: [],
+    ccEmailAddresses: [],
+    originalToEmailAddresses: [],
+    forwardedByEmail: "",
+  };
+  var composeFrom = { name: "", email: "" };
+  var pending = 5;
+  var finished = false;
+
+  function complete() {
+    if (finished) {
+      return;
+    }
+    finished = true;
+    var parsed = parseOriginalFromBody(payload.messageBody);
+    payload.originalEmailDate = parsed.originalEmailDate || payload.originalEmailDate;
+    payload.senderEmailId = parsed.senderEmailId;
+    payload.senderName = parsed.senderName;
+    payload.originalToEmailAddresses = parsed.originalToEmailAddresses || [];
+    payload.forwardedByEmail = composeFrom.email;
+    try {
+      var profile = Office.context.mailbox.userProfile;
+      if (profile && profile.emailAddress && !payload.forwardedByEmail) {
+        payload.forwardedByEmail = profile.emailAddress;
       }
-      loadCustomPropertiesThenDecide(item, event);
-    });
-    return;
+    } catch (ignore) {}
+    done(payload);
   }
-  loadCustomPropertiesThenDecide(item, event);
+
+  setTimeout(complete, 3500);
+
+  function tick() {
+    pending -= 1;
+    if (pending <= 0) {
+      complete();
+    }
+  }
+
+  if (item.subject && item.subject.getAsync) {
+    item.subject.getAsync(function (result) {
+      if (result.status === Office.AsyncResultStatus.Succeeded) {
+        payload.subject = result.value || "";
+      }
+      tick();
+    });
+  } else {
+    tick();
+  }
+
+  if (item.body && item.body.getAsync) {
+    var coercion =
+      Office.CoercionType && Office.CoercionType.Text ? Office.CoercionType.Text : "text";
+    item.body.getAsync(coercion, function (result) {
+      if (result.status === Office.AsyncResultStatus.Succeeded) {
+        payload.messageBody = result.value || "";
+      }
+      tick();
+    });
+  } else {
+    tick();
+  }
+
+  getRecipients(item.to, function (list) {
+    payload.toEmailAddresses = list;
+    tick();
+  });
+  getRecipients(item.cc, function (list) {
+    payload.ccEmailAddresses = list;
+    tick();
+  });
+
+  if (item.from && typeof item.from.getAsync === "function") {
+    item.from.getAsync(function (result) {
+      if (result.status === Office.AsyncResultStatus.Succeeded && result.value) {
+        composeFrom = {
+          name: result.value.displayName || "",
+          email: result.value.emailAddress || "",
+        };
+      }
+      tick();
+    });
+  } else {
+    tick();
+  }
+}
+
+function captureForwardThenAllow(item, event) {
+  var done = false;
+  function finish() {
+    if (done) {
+      return;
+    }
+    done = true;
+    allowSend(event);
+  }
+
+  setTimeout(finish, 5000);
+  collectPayload(item, function (payload) {
+    postCapture(payload, finish);
+  });
 }
 
 function onMessageSendHandler(event) {
@@ -140,29 +252,29 @@ function onMessageSendHandler(event) {
         forwarded = true;
       }
 
+      function afterSubject(subject) {
+        if (forwarded || isForwardedSubject(subject)) {
+          captureForwardThenAllow(item, event);
+          return;
+        }
+        allowSend(event);
+      }
+
       if (forwarded) {
-        checkCustomPropertiesThenDecide(item, event);
+        afterSubject("");
         return;
       }
 
       item.subject.getAsync(function (subjectResult) {
-        var subject =
+        afterSubject(
           subjectResult.status === Office.AsyncResultStatus.Succeeded
             ? subjectResult.value
-            : "";
-        if (isForwardedSubject(subject)) {
-          checkCustomPropertiesThenDecide(item, event);
-          return;
-        }
-        allowSend(event);
+            : "",
+        );
       });
     });
   } catch (ignore) {
-    try {
-      completeBlock(event);
-    } catch (inner) {
-      allowSend(event);
-    }
+    allowSend(event);
   }
 }
 

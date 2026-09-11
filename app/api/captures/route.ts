@@ -97,6 +97,22 @@ export async function POST(request: Request) {
   appendCapture(draft);
 
   appendLog({
+    level: draft.remotePush.ok ? "info" : "error",
+    source: "capture",
+    message: draft.remotePush.ok
+      ? `Letter API result for ${draft.id}: ${draft.remotePush.responseText || "(empty body)"}`
+      : `Letter API error for ${draft.id}: ${draft.remotePush.error || "unknown error"}${draft.remotePush.responseText ? ` | ${draft.remotePush.responseText}` : ""}`,
+    captureId: draft.id,
+    details: {
+      url: draft.remotePush.url,
+      status: draft.remotePush.status,
+      ok: draft.remotePush.ok,
+      error: draft.remotePush.error,
+      responseBody: draft.remotePush.responseText || "",
+    },
+  });
+
+  appendLog({
     level: "info",
     source: "capture",
     message: `Stored capture ${draft.id}`,
