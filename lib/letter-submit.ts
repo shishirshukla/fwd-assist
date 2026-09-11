@@ -5,6 +5,8 @@ import { join } from "node:path";
 import type { RequestOptions } from "node:https";
 
 import { appendLog } from "@/lib/app-log";
+import type { LetterTraceEvent, LetterTracer } from "@/lib/letter-trace";
+import { attachRequestTrace } from "@/lib/letter-trace";
 
 export const DEFAULT_LETTER_SUBMIT_URL =
   "https://eloan.cgbankmobile.in/pensioner_api/auth/api/submit-letter";
@@ -226,6 +228,7 @@ function postJson(
   urlString: string,
   body: string,
   insecureTls: boolean,
+  tracer?: LetterTracer,
 ): Promise<{ status: number; text: string }> {
   return new Promise((resolvePromise, reject) => {
     const url = new URL(urlString);
@@ -251,21 +254,45 @@ function postJson(
       },
     };
 
+    tracer?.push("http.post.start", {
+      url: urlString,
+      hostname: url.hostname,
+      port: options.port,
+      path: options.path,
+      rejectUnauthorized: !insecureTls,
+      timeoutMs,
+      bodyBytes: Buffer.byteLength(body),
+    });
+
     const req = client.request(options, (res) => {
+      tracer?.push("http.response.headers", {
+        statusCode: res.statusCode,
+        headers: res.headers,
+      });
       const chunks: Buffer[] = [];
       res.on("data", (chunk) => {
         chunks.push(Buffer.isBuffer(chunk) ? chunk : Buffer.from(chunk));
       });
       res.on("end", () => {
         clearTimeout(timer);
+        const text = Buffer.concat(chunks).toString("utf8").slice(0, 20000);
+        tracer?.push("http.response.end", {
+          statusCode: res.statusCode,
+          bodyBytes: Buffer.byteLength(text),
+        });
         resolvePromise({
           status: res.statusCode || 0,
-          text: Buffer.concat(chunks).toString("utf8").slice(0, 20000),
+          text,
         });
       });
     });
 
+    if (tracer) {
+      attachRequestTrace(req, tracer);
+    }
+
     const timer = setTimeout(() => {
+      tracer?.push("http.timeout", { timeoutMs });
       req.destroy(
         new Error(
           `ETIMEDOUT: no response from ${url.hostname}:${options.port} after ${timeoutMs}ms`,
@@ -277,6 +304,7 @@ function postJson(
       socket.setTimeout(timeoutMs);
     });
     req.on("timeout", () => {
+      tracer?.push("http.socket-timeout", { timeoutMs });
       req.destroy(
         new Error(
           `ETIMEDOUT: no response from ${url.hostname}:${options.port} after ${timeoutMs}ms`,
@@ -285,6 +313,7 @@ function postJson(
     });
     req.on("error", (error) => {
       clearTimeout(timer);
+      tracer?.push("http.request.error", flattenError(error).details);
       reject(error);
     });
     req.write(body);
@@ -294,6 +323,7 @@ function postJson(
 
 export async function submitLetter(
   fields: LetterSubmitFields,
+  options: { tracer?: LetterTracer } = {},
 ): Promise<{
   attempted: boolean;
   ok: boolean;
@@ -301,6 +331,7 @@ export async function submitLetter(
   error: string | null;
   url: string;
   responseText: string;
+  trace?: LetterTraceEvent[];
 }> {
   const url = buildLetterSubmitUrl(letterSubmitBaseUrl());
   const method = "POST";
@@ -314,8 +345,9 @@ export async function submitLetter(
     details: { method, url, payload, body },
   });
 
+  const tracer = options.tracer;
   async function attempt(insecureTls: boolean) {
-    return postJson(url, body, insecureTls);
+    return postJson(url, body, insecureTls, tracer);
   }
 
   try {
@@ -332,6 +364,7 @@ export async function submitLetter(
           message: `TLS verification failed, retrying without certificate check: ${first.message}`,
           details: { url, error: first.message, errorDetails: first.details },
         });
+        tracer?.push("tls.verify-failed.retry-insecure", first.details);
         insecureTls = true;
         response = await attempt(true);
       } else {
@@ -367,10 +400,11 @@ export async function submitLetter(
         error: result.error,
       },
     });
-    return result;
+    return { ...result, trace: tracer?.events };
   } catch (error) {
     const serialized = flattenError(error);
     const message = `Letter API request failed: ${serialized.message}`;
+    tracer?.push("http.failed", serialized.details);
     appendLog({
       level: "error",
       source: "letter-submit",
@@ -381,6 +415,7 @@ export async function submitLetter(
         error: message,
         errorDetails: serialized.details,
         responseBody: "",
+        trace: tracer?.events,
       },
     });
     return {
@@ -390,6 +425,7 @@ export async function submitLetter(
       error: message,
       url,
       responseText: "",
+      trace: tracer?.events,
     };
   }
 }

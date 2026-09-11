@@ -134,7 +134,7 @@ curl -s http://127.0.0.1:43123/api/letter-health
 curl -sS -m 45 http://127.0.0.1:43123/api/letter-dummy
 ```
 
-`GET` or `POST /api/letter-dummy` sends a dummy JSON body to submit-letter from **this Node process** (same path as a real capture). Use it on Railway or locally to debug connectivity. Optional POST JSON overrides dummy fields.
+`GET` or `POST /api/letter-dummy` sends a dummy JSON body to submit-letter from **this Node process** (same path as a real capture). The response includes `tcpLogs` (DNS, TCP connect, TLS handshake, peer certificate, HTTP socket events) and `certificateHint`. Events are also written to `/logs` with source `letter-dummy-tcp`.
 
 ```bash
 curl -sS -m 45 https://YOUR-APP.up.railway.app/api/letter-dummy

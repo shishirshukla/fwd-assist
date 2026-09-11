@@ -1,9 +1,16 @@
 import { appendLog } from "@/lib/app-log";
 import {
   dummyLetterSubmitFields,
+  letterSubmitBaseUrl,
   submitLetter,
   type LetterSubmitFields,
 } from "@/lib/letter-submit";
+import {
+  createLetterTracer,
+  lookupDns,
+  probeTcp,
+  probeTls,
+} from "@/lib/letter-trace";
 
 export const dynamic = "force-dynamic";
 export const maxDuration = 60;
@@ -18,11 +25,74 @@ export function OPTIONS() {
   return new Response(null, { status: 204, headers: cors });
 }
 
+function readCertHint(trace: { event: string; details?: Record<string, unknown> }[]) {
+  const noVerify = [...trace].reverse().find((entry) => entry.event === "probe.tls.noverify.ok");
+  const verifyFail = [...trace].reverse().find((entry) => entry.event === "probe.tls.verify.fail");
+  const verifyOk = [...trace].reverse().find((entry) => entry.event === "probe.tls.verify.ok");
+  const timedOut = trace.some((entry) => /timeout/i.test(entry.event));
+  const sawCert = Boolean(
+    noVerify?.details?.peerCertificate || verifyOk?.details?.peerCertificate,
+  );
+
+  if (sawCert && verifyFail) {
+    return "TLS handshake completed and a peer certificate was received. Node rejected the certificate (not a TCP timeout).";
+  }
+  if (sawCert && verifyOk) {
+    return "TLS handshake completed, peer certificate was received, and certificate verification succeeded.";
+  }
+  if (timedOut && !sawCert) {
+    return "Timed out before a peer certificate was received. That is a handshake/TCP stall, not a certificate validation error.";
+  }
+  return "See tcpLogs for DNS, TCP, TLS, and HTTP socket events.";
+}
+
 async function runDummy(overrides: Partial<LetterSubmitFields> = {}) {
   const payload = dummyLetterSubmitFields(overrides);
+  const tracer = createLetterTracer();
+  const target = new URL(letterSubmitBaseUrl());
+  const host = target.hostname;
+  const port = Number(target.port || (target.protocol === "https:" ? 443 : 80));
+  const probeMs = 8000;
+
+  tracer.push("dummy.start", { url: target.toString(), host, port });
+
+  try {
+    const addresses = await lookupDns(host);
+    tracer.push("dns.ok", { addresses });
+  } catch (error) {
+    tracer.push("dns.fail", {
+      message: error instanceof Error ? error.message : String(error),
+    });
+  }
+
+  try {
+    await probeTcp(host, port, probeMs, tracer);
+  } catch (error) {
+    tracer.push("probe.tcp.caught", {
+      message: error instanceof Error ? error.message : String(error),
+    });
+  }
+
+  try {
+    await probeTls(host, port, probeMs, false, tracer);
+  } catch (error) {
+    tracer.push("probe.tls.noverify.caught", {
+      message: error instanceof Error ? error.message : String(error),
+    });
+  }
+
+  try {
+    await probeTls(host, port, probeMs, true, tracer);
+  } catch (error) {
+    tracer.push("probe.tls.verify.caught", {
+      message: error instanceof Error ? error.message : String(error),
+    });
+  }
+
   const started = Date.now();
-  const result = await submitLetter(payload);
+  const result = await submitLetter(payload, { tracer });
   const elapsedMs = Date.now() - started;
+  const certificateHint = readCertHint(tracer.events);
 
   appendLog({
     level: result.ok ? "info" : "error",
@@ -37,7 +107,9 @@ async function runDummy(overrides: Partial<LetterSubmitFields> = {}) {
       ok: result.ok,
       error: result.error,
       payload,
+      certificateHint,
       responseBody: result.responseText || "",
+      tcpLogs: tracer.events,
     },
   });
 
@@ -49,6 +121,8 @@ async function runDummy(overrides: Partial<LetterSubmitFields> = {}) {
     status: result.status,
     error: result.error,
     responseText: result.responseText,
+    certificateHint,
+    tcpLogs: tracer.events,
   };
 }
 
