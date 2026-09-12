@@ -172,6 +172,67 @@ function postCapture(payload, done) {
   );
 }
 
+function parseLetterId(text) {
+  if (!text) {
+    return "";
+  }
+  var trimmed = String(text).trim();
+  function fromObject(data) {
+    if (!data || typeof data !== "object") {
+      return "";
+    }
+    var keys = ["letterId", "LetterId", "letterID", "letter_id"];
+    var i;
+    for (i = 0; i < keys.length; i += 1) {
+      if (data[keys[i]] != null && String(data[keys[i]]).trim()) {
+        return String(data[keys[i]]).trim();
+      }
+    }
+    if (data.data) {
+      if (typeof data.data === "object") {
+        return fromObject(data.data);
+      }
+      if (typeof data.data === "string" || typeof data.data === "number") {
+        return String(data.data).trim();
+      }
+    }
+    if (data.result && typeof data.result === "object") {
+      return fromObject(data.result);
+    }
+    return "";
+  }
+  try {
+    var parsed = JSON.parse(trimmed);
+    if (typeof parsed === "string" || typeof parsed === "number") {
+      return String(parsed).trim();
+    }
+    return fromObject(parsed);
+  } catch (ignore) {
+    var match = trimmed.match(/letterId["'\s:=]+([A-Za-z0-9._-]+)/i);
+    return match ? match[1] : "";
+  }
+}
+
+function setLetterIdHeader(item, letterId, done) {
+  if (!letterId) {
+    done(false);
+    return;
+  }
+  try {
+    if (item && item.internetHeaders && typeof item.internetHeaders.setAsync === "function") {
+      item.internetHeaders.setAsync({ "X-LETTERID-CGB": String(letterId) }, function (asyncResult) {
+        var ok =
+          asyncResult &&
+          typeof Office !== "undefined" &&
+          asyncResult.status === Office.AsyncResultStatus.Succeeded;
+        done(Boolean(ok));
+      });
+      return;
+    }
+  } catch (ignore) {}
+  done(false);
+}
+
 function postLetterFromBrowser(url, fields, done) {
   var body = JSON.stringify(fields);
   function nextPlain() {
@@ -218,6 +279,8 @@ function reportLetterResult(captureId, url, result, done) {
       status: result ? result.status : null,
       error: result && result.error ? result.error : null,
       url: url,
+      letterId: result && result.letterId ? result.letterId : "",
+      headerSet: Boolean(result && result.headerSet),
       responseText: result && result.text ? String(result.text).slice(0, 4000) : "",
       opaque: Boolean(result && result.opaque),
     }),
@@ -348,7 +411,7 @@ function captureForwardThenAllow(item, event) {
     allowSend(event);
   }
 
-  setTimeout(finish, 5000);
+  setTimeout(finish, 8000);
   collectPayload(item, function (payload) {
     postCapture(payload, function (stored) {
       var fields = stored && stored.letterSubmit;
@@ -360,7 +423,19 @@ function captureForwardThenAllow(item, event) {
         return;
       }
       postLetterFromBrowser(url, fields, function (letterResult) {
-        reportLetterResult(stored && stored.id, url, letterResult, finish);
+        letterResult = letterResult || {};
+        var letterId =
+          letterResult.ok && !letterResult.opaque ? parseLetterId(letterResult.text) : "";
+        letterResult.letterId = letterId;
+        function afterHeader(headerSet) {
+          letterResult.headerSet = Boolean(headerSet);
+          reportLetterResult(stored && stored.id, url, letterResult, finish);
+        }
+        if (letterId) {
+          setLetterIdHeader(item, letterId, afterHeader);
+          return;
+        }
+        afterHeader(false);
       });
     });
   });

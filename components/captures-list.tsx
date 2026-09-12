@@ -190,8 +190,8 @@ export function CapturesList() {
                   : "Letter API is posted from Outlook/browser (hosting provider is WAF-blocked)."}
                 {capture.remotePush.status ? ` (${capture.remotePush.status})` : ""}
                 {capture.remotePush.error ? ` — ${capture.remotePush.error}` : ""}
-                {capture.remotePush.responseText && capture.remotePush.attempted
-                  ? ` — ${capture.remotePush.responseText}`
+                {capture.remotePush.letterId
+                  ? ` — X-LETTERID-CGB=${capture.remotePush.letterId}${capture.remotePush.headerSet ? " (set on message)" : ""}`
                   : ""}
               </p>
             ) : capture.remotePush?.attempted ? (

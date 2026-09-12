@@ -51,6 +51,8 @@ export type StoredForwardCapture = {
     ok: boolean;
     status: number | null;
     error: string | null;
+    letterId?: string;
+    headerSet?: boolean;
     url?: string;
     responseText?: string;
     source?: string;
@@ -172,6 +174,8 @@ export function formatCaptureText(record: StoredForwardCapture): string {
     `Letter department: ${record.letterSubmit?.department || ""}`,
     `Letter EntryBy: ${record.letterSubmit?.EntryBy || ""}`,
     `Letter dates: ${record.letterSubmit?.receivingDate || ""}`,
+    `Letter ID: ${record.remotePush?.letterId || ""}`,
+    `X-LETTERID-CGB: ${record.remotePush?.headerSet ? "set" : ""}`,
     "Message Body:",
     record.messageBody,
     `### JSON ${JSON.stringify(record)}`,

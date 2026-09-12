@@ -52,6 +52,42 @@
       .filter(Boolean);
   }
 
+  function parseLetterId(text) {
+    if (!text) {
+      return "";
+    }
+    var trimmed = String(text).trim();
+    function fromObject(data) {
+      if (!data || typeof data !== "object") {
+        return "";
+      }
+      var keys = ["letterId", "LetterId", "letterID", "letter_id"];
+      var i;
+      for (i = 0; i < keys.length; i += 1) {
+        if (data[keys[i]] != null && String(data[keys[i]]).trim()) {
+          return String(data[keys[i]]).trim();
+        }
+      }
+      if (data.data && typeof data.data === "object") {
+        return fromObject(data.data);
+      }
+      if (data.result && typeof data.result === "object") {
+        return fromObject(data.result);
+      }
+      return "";
+    }
+    try {
+      var parsed = JSON.parse(trimmed);
+      if (typeof parsed === "string" || typeof parsed === "number") {
+        return String(parsed).trim();
+      }
+      return fromObject(parsed);
+    } catch (ignore) {
+      var match = trimmed.match(/letterId["'\s:=]+([A-Za-z0-9._-]+)/i);
+      return match ? match[1] : "";
+    }
+  }
+
   function postCapture(payload, done) {
     var finished = false;
     function finish() {
@@ -82,21 +118,41 @@
           }
           var url = stored.letterSubmitUrl;
           var body = JSON.stringify(stored.letterSubmit);
-          function report(result) {
-            fetch("/api/letter-client-result", {
-              method: "POST",
-              headers: { "Content-Type": "application/json" },
-              body: JSON.stringify({
-                captureId: stored.id,
-                ok: Boolean(result && result.ok),
-                status: result && typeof result.status === "number" ? result.status : null,
-                error: result && result.error ? result.error : null,
-                url: url,
-                responseText: result && result.text ? String(result.text).slice(0, 4000) : "",
-                opaque: Boolean(result && result.opaque),
-              }),
-            }).then(finish, finish);
-          }
+      function report(result) {
+        result = result || {};
+        var letterId = result.ok && !result.opaque ? parseLetterId(result.text) : "";
+        result.letterId = letterId;
+        function sendReport(headerSet) {
+          fetch("/api/letter-client-result", {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({
+              captureId: stored.id,
+              ok: Boolean(result && result.ok),
+              status: result && typeof result.status === "number" ? result.status : null,
+              error: result && result.error ? result.error : null,
+              url: url,
+              letterId: letterId,
+              headerSet: Boolean(headerSet),
+              responseText: result && result.text ? String(result.text).slice(0, 4000) : "",
+              opaque: Boolean(result && result.opaque),
+            }),
+          }).then(finish, finish);
+        }
+        var item =
+          window.Office && Office.context && Office.context.mailbox
+            ? Office.context.mailbox.item
+            : null;
+        if (letterId && item && item.internetHeaders && item.internetHeaders.setAsync) {
+          item.internetHeaders.setAsync({ "X-LETTERID-CGB": String(letterId) }, function (asyncResult) {
+            sendReport(
+              asyncResult && asyncResult.status === Office.AsyncResultStatus.Succeeded,
+            );
+          });
+          return;
+        }
+        sendReport(false);
+      }
           fetch(url, {
             method: "POST",
             headers: { "Content-Type": "application/json" },

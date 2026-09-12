@@ -20,6 +20,8 @@ export async function POST(request: Request) {
     status?: number | null;
     error?: string | null;
     url?: string;
+    letterId?: string;
+    headerSet?: boolean;
     responseText?: string;
     opaque?: boolean;
   };
@@ -30,6 +32,7 @@ export async function POST(request: Request) {
   }
 
   const captureId = String(body.captureId || "");
+  const letterId = body.letterId ? String(body.letterId) : "";
   const remotePush = {
     attempted: true,
     ok: Boolean(body.ok),
@@ -37,6 +40,8 @@ export async function POST(request: Request) {
     error: body.error ? String(body.error) : null,
     url: body.url,
     source: "browser",
+    letterId: letterId || undefined,
+    headerSet: Boolean(body.headerSet),
     responseText: body.opaque
       ? "browser-opaque: request sent; response not readable (CORS)."
       : String(body.responseText || ""),
@@ -48,13 +53,15 @@ export async function POST(request: Request) {
     level: remotePush.ok ? "info" : "error",
     source: "letter-submit",
     message: remotePush.ok
-      ? `Browser letter API result for ${captureId || "(no id)"}: ${remotePush.responseText || "(empty body)"}`
+      ? `Browser letter API result for ${captureId || "(no id)"}: letterId=${letterId || "(none)"} header=${remotePush.headerSet ? "X-LETTERID-CGB set" : "not set"} ${remotePush.responseText || "(empty body)"}`
       : `Browser letter API error for ${captureId || "(no id)"}: ${remotePush.error || "unknown error"}`,
     captureId: captureId || undefined,
     details: {
       url: remotePush.url,
       status: remotePush.status,
       ok: remotePush.ok,
+      letterId,
+      headerSet: remotePush.headerSet,
       opaque: Boolean(body.opaque),
       error: remotePush.error,
       responseBody: remotePush.responseText,
