@@ -144,6 +144,8 @@ export async function POST(request: Request) {
       ok: true,
       id: draft.id,
       letterSubmit: draft.letterSubmit,
+      letterSubmits: draft.letterSubmits,
+      letterSubmitShouldRun: draft.letterSubmitShouldRun,
       letterSubmitUrl: buildLetterSubmitUrl(letterSubmitBaseUrl()),
       letterSubmitFromServer: letterSubmitFromServer(),
       remotePush: draft.remotePush,

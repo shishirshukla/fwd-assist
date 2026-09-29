@@ -163,6 +163,59 @@ export function mapLetterSubmitFields(input: {
   };
 }
 
+export function subjectHasLmsKeyword(subject: string | undefined): boolean {
+  return /\[LMS\]/i.test(subject || "");
+}
+
+export function uniqueEmails(emails: string[]): string[] {
+  const seen = new Set<string>();
+  const result: string[] = [];
+  for (const raw of emails) {
+    const email = raw.trim();
+    if (!email) {
+      continue;
+    }
+    const key = email.toLowerCase();
+    if (seen.has(key)) {
+      continue;
+    }
+    seen.add(key);
+    result.push(email);
+  }
+  return result;
+}
+
+export type LetterSubmitForRecipient = {
+  toEmail: string;
+  fields: LetterSubmitFields;
+};
+
+export function mapLetterSubmitsForToAddresses(input: {
+  originalEmailDate?: string;
+  senderEmailId?: string;
+  senderName?: string;
+  subject?: string;
+  priority?: string;
+  toEmailAddresses?: string[];
+  forwardedByEmail?: string;
+}): LetterSubmitForRecipient[] {
+  const tos = uniqueEmails(input.toEmailAddresses || []);
+  const targets = tos.length > 0 ? tos : [""];
+  return targets.map((toEmail) => ({
+    toEmail,
+    fields: mapLetterSubmitFields({
+      originalEmailDate: input.originalEmailDate,
+      senderEmailId: input.senderEmailId,
+      senderName: input.senderName,
+      subject: input.subject,
+      priority: input.priority,
+      toEmailAddresses: toEmail ? [toEmail] : [],
+      originalToEmailAddresses: [],
+      forwardedByEmail: input.forwardedByEmail,
+    }),
+  }));
+}
+
 export function letterSubmitPayload(fields: LetterSubmitFields): LetterSubmitFields {
   return {
     receivingDate: fields.receivingDate,

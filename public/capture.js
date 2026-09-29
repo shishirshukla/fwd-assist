@@ -112,81 +112,148 @@
           return res.json();
         })
         .then(function (stored) {
-          if (!stored || !stored.letterSubmit || stored.letterSubmitFromServer) {
+          var shouldRun =
+            stored && stored.letterSubmitShouldRun !== undefined
+              ? stored.letterSubmitShouldRun
+              : /\[LMS\]/i.test((payload && payload.subject) || "");
+          if (
+            !stored ||
+            stored.letterSubmitFromServer ||
+            !shouldRun ||
+            (!stored.letterSubmit && !(stored.letterSubmits && stored.letterSubmits.length))
+          ) {
             finish();
             return;
           }
           var url = stored.letterSubmitUrl;
-          var body = JSON.stringify(stored.letterSubmit);
-      function report(result) {
-        result = result || {};
-        var letterId = result.ok && !result.opaque ? parseLetterId(result.text) : "";
-        result.letterId = letterId;
-        function sendReport(headerSet) {
-          fetch("/api/letter-client-result", {
-            method: "POST",
-            headers: { "Content-Type": "application/json" },
-            body: JSON.stringify({
-              captureId: stored.id,
-              ok: Boolean(result && result.ok),
-              status: result && typeof result.status === "number" ? result.status : null,
-              error: result && result.error ? result.error : null,
-              url: url,
-              letterId: letterId,
-              headerSet: Boolean(headerSet),
-              responseText: result && result.text ? String(result.text).slice(0, 4000) : "",
-              opaque: Boolean(result && result.opaque),
-            }),
-          }).then(finish, finish);
-        }
-        var item =
-          window.Office && Office.context && Office.context.mailbox
-            ? Office.context.mailbox.item
-            : null;
-        if (letterId && item && item.internetHeaders && item.internetHeaders.setAsync) {
-          item.internetHeaders.setAsync({ "X-LETTERID-CGB": String(letterId) }, function (asyncResult) {
-            sendReport(
-              asyncResult && asyncResult.status === Office.AsyncResultStatus.Succeeded,
+          var payloads =
+            stored.letterSubmits && stored.letterSubmits.length
+              ? stored.letterSubmits.map(function (row) {
+                  return row.fields;
+                })
+              : [stored.letterSubmit];
+          var results = new Array(payloads.length);
+          var left = payloads.length;
+          function allDone() {
+            var letterIds = [];
+            var texts = [];
+            var ok = false;
+            var status = null;
+            var error = null;
+            results.forEach(function (result) {
+              if (!result) {
+                return;
+              }
+              if (result.ok) {
+                ok = true;
+              }
+              var letterId = result.ok && !result.opaque ? parseLetterId(result.text) : "";
+              if (letterId) {
+                letterIds.push(letterId);
+              }
+              if (result.text) {
+                texts.push(result.text);
+              }
+              if (result.status != null && status == null) {
+                status = result.status;
+              }
+              if (result.error && !error) {
+                error = result.error;
+              }
+            });
+            var letterId = letterIds.join(",");
+            function sendReport(headerSet) {
+              fetch("/api/letter-client-result", {
+                method: "POST",
+                headers: { "Content-Type": "application/json" },
+                body: JSON.stringify({
+                  captureId: stored.id,
+                  ok: ok,
+                  status: status,
+                  error: error,
+                  url: url,
+                  letterId: letterId,
+                  headerSet: Boolean(headerSet),
+                  responseText: texts.join("\n").slice(0, 4000),
+                  opaque: false,
+                }),
+              }).then(finish, finish);
+            }
+            var item =
+              window.Office && Office.context && Office.context.mailbox
+                ? Office.context.mailbox.item
+                : null;
+            if (letterId && item && item.internetHeaders && item.internetHeaders.setAsync) {
+              item.internetHeaders.setAsync(
+                { "X-LETTERID-CGB": String(letterId) },
+                function (asyncResult) {
+                  sendReport(
+                    asyncResult && asyncResult.status === Office.AsyncResultStatus.Succeeded,
+                  );
+                },
+              );
+              return;
+            }
+            sendReport(false);
+          }
+          payloads.forEach(function (fields, index) {
+            fetch(url, {
+              method: "POST",
+              headers: { "Content-Type": "application/json" },
+              body: JSON.stringify(fields),
+            }).then(
+              function (letterRes) {
+                letterRes.text().then(
+                  function (text) {
+                    results[index] = { ok: letterRes.ok, status: letterRes.status, text: text };
+                    left -= 1;
+                    if (left <= 0) {
+                      allDone();
+                    }
+                  },
+                  function () {
+                    results[index] = { ok: letterRes.ok, status: letterRes.status, text: "" };
+                    left -= 1;
+                    if (left <= 0) {
+                      allDone();
+                    }
+                  },
+                );
+              },
+              function (error) {
+                fetch(url, {
+                  method: "POST",
+                  mode: "no-cors",
+                  headers: { "Content-Type": "text/plain;charset=UTF-8" },
+                  body: JSON.stringify(fields),
+                }).then(
+                  function () {
+                    results[index] = {
+                      ok: true,
+                      status: 0,
+                      opaque: true,
+                      text: "",
+                      error: error && error.message ? error.message : "letter fetch failed",
+                    };
+                    left -= 1;
+                    if (left <= 0) {
+                      allDone();
+                    }
+                  },
+                  function () {
+                    results[index] = {
+                      ok: false,
+                      error: error && error.message ? error.message : "letter fetch failed",
+                    };
+                    left -= 1;
+                    if (left <= 0) {
+                      allDone();
+                    }
+                  },
+                );
+              },
             );
           });
-          return;
-        }
-        sendReport(false);
-      }
-          fetch(url, {
-            method: "POST",
-            headers: { "Content-Type": "application/json" },
-            body: body,
-          }).then(
-            function (letterRes) {
-              letterRes.text().then(
-                function (text) {
-                  report({ ok: letterRes.ok, status: letterRes.status, text: text });
-                },
-                function () {
-                  report({ ok: letterRes.ok, status: letterRes.status, text: "" });
-                },
-              );
-            },
-            function (error) {
-              fetch(url, {
-                method: "POST",
-                mode: "no-cors",
-                headers: { "Content-Type": "text/plain;charset=UTF-8" },
-                body: body,
-              }).then(
-                function () {
-                  report({ ok: true, status: 0, opaque: true, text: "" });
-                },
-                function () {
-                  report({
-                    ok: false,
-                    error: error && error.message ? error.message : "letter fetch failed",
-                  });
-                },
-              );
-            },
-          );
         }, finish);
     } catch (ignore) {
       finish();

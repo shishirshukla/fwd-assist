@@ -6,6 +6,8 @@ import {
   letterSubmitEnabled,
   letterSubmitFromServer,
   mapLetterSubmitFields,
+  mapLetterSubmitsForToAddresses,
+  subjectHasLmsKeyword,
   submitLetter,
   buildLetterSubmitUrl,
   type LetterSubmitFields,
@@ -46,6 +48,8 @@ export type StoredForwardCapture = {
     category: string;
   } | null;
   letterSubmit: LetterSubmitFields;
+  letterSubmits?: { toEmail: string; fields: LetterSubmitFields }[];
+  letterSubmitShouldRun?: boolean;
   remotePush: {
     attempted: boolean;
     ok: boolean;
@@ -146,18 +150,31 @@ export function normalizeCapture(
         : null,
   };
 
+  const letterSubmits = mapLetterSubmitsForToAddresses({
+    originalEmailDate: base.originalEmailDate,
+    senderEmailId: base.senderEmailId,
+    senderName: base.senderName,
+    subject: base.subject,
+    priority: base.classification?.priority,
+    toEmailAddresses: base.toEmailAddresses,
+    forwardedByEmail: base.forwardedByEmail,
+  });
+
   return {
     ...base,
-    letterSubmit: mapLetterSubmitFields({
-      originalEmailDate: base.originalEmailDate,
-      senderEmailId: base.senderEmailId,
-      senderName: base.senderName,
-      subject: base.subject,
-      priority: base.classification?.priority,
-      toEmailAddresses: base.toEmailAddresses,
-      originalToEmailAddresses: base.originalToEmailAddresses,
-      forwardedByEmail: base.forwardedByEmail,
-    }),
+    letterSubmit: letterSubmits[0]?.fields ||
+      mapLetterSubmitFields({
+        originalEmailDate: base.originalEmailDate,
+        senderEmailId: base.senderEmailId,
+        senderName: base.senderName,
+        subject: base.subject,
+        priority: base.classification?.priority,
+        toEmailAddresses: base.toEmailAddresses,
+        originalToEmailAddresses: base.originalToEmailAddresses,
+        forwardedByEmail: base.forwardedByEmail,
+      }),
+    letterSubmits,
+    letterSubmitShouldRun: subjectHasLmsKeyword(base.subject),
   };
 }
 
@@ -173,7 +190,10 @@ export function formatCaptureText(record: StoredForwardCapture): string {
     `Forwarded by: ${record.forwardedByEmail || ""}`,
     `Letter department: ${record.letterSubmit?.department || ""}`,
     `Letter EntryBy: ${record.letterSubmit?.EntryBy || ""}`,
-    `Letter dates: ${record.letterSubmit?.receivingDate || ""}`,
+    `Letter LMS: ${record.letterSubmitShouldRun ? "yes" : "no"}`,
+    `Letter To submits: ${(record.letterSubmits || [])
+      .map((row) => `${row.toEmail || "(none)"}->${row.fields.department}`)
+      .join("; ")}`,
     `Letter ID: ${record.remotePush?.letterId || ""}`,
     `X-LETTERID-CGB: ${record.remotePush?.headerSet ? "set" : ""}`,
     "Message Body:",
@@ -219,6 +239,18 @@ export async function pushCaptureIfConfigured(
     return { attempted: false, ok: false, status: null, error: null };
   }
 
+  if (!subjectHasLmsKeyword(record.subject)) {
+    return {
+      attempted: false,
+      ok: false,
+      status: null,
+      error: null,
+      source: letterSubmitFromServer() ? "server" : "browser",
+      url: buildLetterSubmitUrl(letterSubmitBaseUrl()),
+      responseText: "skipped: subject does not contain [LMS]",
+    };
+  }
+
   if (!letterSubmitFromServer()) {
     return {
       attempted: false,
@@ -232,15 +264,30 @@ export async function pushCaptureIfConfigured(
     };
   }
 
-  const result = await submitLetter(record.letterSubmit);
+  const payloads = (record.letterSubmits || []).map((row) => row.fields);
+  const toSubmit = payloads.length > 0 ? payloads : [record.letterSubmit];
+  const results = [];
+  for (const fields of toSubmit) {
+    results.push(await submitLetter(fields));
+  }
+  const letterIds = results
+    .map((result) => {
+      const text = result.responseText || "";
+      const match = text.match(/"letterId"\s*:\s*"?([^",}\s]+)/i);
+      return match ? match[1] : "";
+    })
+    .filter(Boolean);
+  const failed = results.find((result) => !result.ok);
+  const last = results[results.length - 1];
   return {
-    attempted: result.attempted,
-    ok: result.ok,
-    status: result.status,
-    error: result.error,
-    url: result.url,
+    attempted: true,
+    ok: !failed,
+    status: last?.status ?? null,
+    error: failed?.error || last?.error || null,
+    url: last?.url,
     source: "server",
-    responseText: result.responseText,
+    letterId: letterIds.join(","),
+    responseText: results.map((result) => result.responseText || "").join("\n---\n"),
   };
 }
 

@@ -9,7 +9,7 @@ Office add-in for Outlook on the web. It runs when the user clicks **Send**, det
    - `getComposeTypeAsync` returns `Forward`, or
    - the subject starts with `FW:` / `Fwd:`
 3. If it is not a forward, send continues with no capture.
-4. If it is a forward, the add-in reads sender, date, subject, body, and To/Cc, `POST`s `/api/captures` (store + mapping), POSTs submit-letter **from Outlook/the browser**, sets internet header `X-LETTERID-CGB` from the returned `letterId`, then allows send.
+4. If it is a forward, the add-in reads sender, date, subject, body, and To/Cc, `POST`s `/api/captures`. If the subject contains **`[LMS]`**, it POSTs submit-letter **once per To address** from Outlook/the browser, sets `X-LETTERID-CGB` from returned `letterId` values, then allows send. Without `[LMS]`, send continues with no letter API call.
 
 The home page embeds an **Outlook-style simulator** (`/simulator.html`) so you can try the same flow in a browser without sideloading.
 
@@ -137,7 +137,7 @@ curl -sS -m 45 http://127.0.0.1:43123/api/letter-dummy
 
 `GET` or `POST /api/letter-dummy` POSTs dummy JSON from **Node** (the WAF will still block this). To test the real path, open **`/letter-dummy.html`** and click the button — that POSTs from **your browser**.
 
-After a version bump (now **1.0.12.0**), **remove** Forward Guard and sideload `manifest.xml` again.
+After a version bump (now **1.0.13.0**), **remove** Forward Guard and sideload `manifest.xml` again.
 
 ```bash
 curl -sS -m 45 https://YOUR-APP.up.railway.app/api/letter-dummy
@@ -178,7 +178,7 @@ Quick steps:
 
 ### Sideload after this change
 
-After a version bump (now **1.0.12.0**), **remove** Forward Guard and sideload `manifest.xml` again. Forward a message and click **Send**. On a successful letter API response, the add-in writes `letterId` to internet header **`X-LETTERID-CGB`** on the outgoing mail.
+After a version bump (now **1.0.13.0**), **remove** Forward Guard and sideload `manifest.xml` again. Forward a message whose subject contains **`[LMS]`** and click **Send**. One submit-letter call runs per To address. Returned `letterId` values are written to **`X-LETTERID-CGB`**.
 
 Every push to `main` triggers a new Railway deploy automatically.
 

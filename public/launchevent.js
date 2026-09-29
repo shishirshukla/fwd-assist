@@ -401,6 +401,42 @@ function collectPayload(item, done) {
   }
 }
 
+function subjectHasLms(subject) {
+  return /\[LMS\]/i.test(subject || "");
+}
+
+function letterPayloadsFromStored(stored) {
+  if (stored && stored.letterSubmits && stored.letterSubmits.length) {
+    return stored.letterSubmits.map(function (row) {
+      return row.fields;
+    });
+  }
+  if (stored && stored.letterSubmit) {
+    return [stored.letterSubmit];
+  }
+  return [];
+}
+
+function postLettersFromBrowser(url, payloads, done) {
+  if (!payloads.length) {
+    done([]);
+    return;
+  }
+  var results = new Array(payloads.length);
+  var left = payloads.length;
+  payloads.forEach(function (fields, index) {
+    postLetterFromBrowser(url, fields, function (result) {
+      result = result || {};
+      result.letterId = result.ok && !result.opaque ? parseLetterId(result.text) : "";
+      results[index] = result;
+      left -= 1;
+      if (left <= 0) {
+        done(results);
+      }
+    });
+  });
+}
+
 function captureForwardThenAllow(item, event) {
   var done = false;
   function finish() {
@@ -411,28 +447,65 @@ function captureForwardThenAllow(item, event) {
     allowSend(event);
   }
 
-  setTimeout(finish, 8000);
+  setTimeout(finish, 15000);
   collectPayload(item, function (payload) {
     postCapture(payload, function (stored) {
-      var fields = stored && stored.letterSubmit;
       var url =
         (stored && stored.letterSubmitUrl) ||
         "https://eloan.cgbankmobile.in/pensioner_api/auth/api/submit-letter";
-      if (!fields || stored.letterSubmitFromServer) {
+      var shouldRun =
+        stored && stored.letterSubmitShouldRun !== undefined
+          ? stored.letterSubmitShouldRun
+          : subjectHasLms(payload.subject);
+      if (!stored || stored.letterSubmitFromServer || !shouldRun) {
         finish();
         return;
       }
-      postLetterFromBrowser(url, fields, function (letterResult) {
-        letterResult = letterResult || {};
-        var letterId =
-          letterResult.ok && !letterResult.opaque ? parseLetterId(letterResult.text) : "";
-        letterResult.letterId = letterId;
+      var payloads = letterPayloadsFromStored(stored);
+      if (!payloads.length) {
+        finish();
+        return;
+      }
+      postLettersFromBrowser(url, payloads, function (results) {
+        var letterIds = [];
+        var texts = [];
+        var ok = false;
+        var status = null;
+        var error = null;
+        results.forEach(function (result) {
+          if (!result) {
+            return;
+          }
+          if (result.ok) {
+            ok = true;
+          }
+          if (result.letterId) {
+            letterIds.push(result.letterId);
+          }
+          if (result.text) {
+            texts.push(result.text);
+          }
+          if (result.status != null && status == null) {
+            status = result.status;
+          }
+          if (result.error && !error) {
+            error = result.error;
+          }
+        });
+        var letterResult = {
+          ok: ok,
+          status: status,
+          text: texts.join("\n"),
+          letterId: letterIds.join(","),
+          error: error,
+          opaque: false,
+        };
         function afterHeader(headerSet) {
           letterResult.headerSet = Boolean(headerSet);
           reportLetterResult(stored && stored.id, url, letterResult, finish);
         }
-        if (letterId) {
-          setLetterIdHeader(item, letterId, afterHeader);
+        if (letterResult.letterId) {
+          setLetterIdHeader(item, letterResult.letterId, afterHeader);
           return;
         }
         afterHeader(false);
