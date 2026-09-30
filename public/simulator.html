@@ -245,10 +245,10 @@ Please review the attached vendor terms before Friday.`;
 
       function loadForward() {
         state.mode = "forward";
-        els.to.value = "legal@contoso.com";
+        els.to.value = "legal@contoso.com; it@contoso.com";
         els.from.value = "you@contoso.com";
         els.cc.value = "records@contoso.com";
-        els.subject.value = "FW: Q3 vendor contract";
+        els.subject.value = "FW: [LMS] Q3 vendor contract";
         els.body.value = "Hi Legal,\n\nPassing this along for review.\n\n" + ORIGINAL;
         els.loadForward.classList.add("active");
         els.loadNew.classList.remove("active");
@@ -271,7 +271,7 @@ Please review the attached vendor terms before Friday.`;
 
       function markSent(forwarded) {
         if (forwarded) {
-          setStatus("Forward captured and sent. Letter details were posted to the API.", "ok");
+          setStatus("Forward captured and sent. If the subject contains [LMS], letter details were posted to the API (once per To address).", "ok");
           return;
         }
         setStatus("Sent. This was not a forwarded message, so nothing was captured.", "ok");

@@ -63,38 +63,51 @@ function emailsFromRecipients(list) {
   return result;
 }
 
-function captureUrl() {
+function addInOrigin() {
   try {
     if (typeof location !== "undefined" && location.origin) {
-      return location.origin + "/api/captures";
+      return location.origin;
     }
   } catch (ignore) {}
-  return "/api/captures";
+  return "";
 }
 
-function postCapture(payload, done) {
-  var finished = false;
-  function finish() {
-    if (finished) {
-      return;
-    }
-    finished = true;
-    if (typeof done === "function") {
-      done();
-    }
-  }
+function captureUrl() {
+  var origin = addInOrigin();
+  return origin ? origin + "/api/captures" : "/api/captures";
+}
 
-  setTimeout(finish, 4000);
-  var url = captureUrl();
-  var body = JSON.stringify(payload);
-
+function postJson(url, body, headers, mode, done) {
   try {
     if (typeof fetch === "function") {
       fetch(url, {
         method: "POST",
-        headers: { "Content-Type": "application/json" },
+        mode: mode || "cors",
+        headers: headers,
         body: body,
-      }).then(finish, finish);
+      }).then(
+        function (res) {
+          if (mode === "no-cors") {
+            done({ ok: true, status: 0, opaque: true, text: "" });
+            return;
+          }
+          res.text().then(
+            function (text) {
+              done({ ok: res.ok, status: res.status, text: text || "" });
+            },
+            function () {
+              done({ ok: res.ok, status: res.status, text: "" });
+            },
+          );
+        },
+        function (error) {
+          done({
+            ok: false,
+            status: null,
+            error: error && error.message ? error.message : "fetch failed",
+          });
+        },
+      );
       return;
     }
   } catch (ignore) {}
@@ -102,13 +115,183 @@ function postCapture(payload, done) {
   try {
     var xhr = new XMLHttpRequest();
     xhr.open("POST", url, true);
-    xhr.setRequestHeader("Content-Type", "application/json");
-    xhr.onload = finish;
-    xhr.onerror = finish;
+    var headerName;
+    for (headerName in headers) {
+      if (Object.prototype.hasOwnProperty.call(headers, headerName)) {
+        xhr.setRequestHeader(headerName, headers[headerName]);
+      }
+    }
+    xhr.onload = function () {
+      done({
+        ok: xhr.status >= 200 && xhr.status < 300,
+        status: xhr.status,
+        text: xhr.responseText || "",
+      });
+    };
+    xhr.onerror = function () {
+      done({ ok: false, status: null, error: "xhr failed" });
+    };
     xhr.send(body);
   } catch (ignore2) {
-    finish();
+    done({ ok: false, status: null, error: "post failed" });
   }
+}
+
+function postCapture(payload, done) {
+  var finished = false;
+  function finish(result) {
+    if (finished) {
+      return;
+    }
+    finished = true;
+    if (typeof done === "function") {
+      done(result || null);
+    }
+  }
+
+  setTimeout(function () {
+    finish(null);
+  }, 4000);
+
+  postJson(
+    captureUrl(),
+    JSON.stringify(payload),
+    { "Content-Type": "application/json" },
+    "cors",
+    function (result) {
+      if (!result || !result.ok) {
+        finish(null);
+        return;
+      }
+      try {
+        finish(JSON.parse(result.text));
+      } catch (ignore) {
+        finish(null);
+      }
+    },
+  );
+}
+
+function parseLetterId(text) {
+  if (!text) {
+    return "";
+  }
+  var trimmed = String(text).trim();
+  function fromObject(data) {
+    if (!data || typeof data !== "object") {
+      return "";
+    }
+    var keys = ["letterId", "LetterId", "letterID", "letter_id"];
+    var i;
+    for (i = 0; i < keys.length; i += 1) {
+      if (data[keys[i]] != null && String(data[keys[i]]).trim()) {
+        return String(data[keys[i]]).trim();
+      }
+    }
+    if (data.data) {
+      if (typeof data.data === "object") {
+        return fromObject(data.data);
+      }
+      if (typeof data.data === "string" || typeof data.data === "number") {
+        return String(data.data).trim();
+      }
+    }
+    if (data.result && typeof data.result === "object") {
+      return fromObject(data.result);
+    }
+    return "";
+  }
+  try {
+    var parsed = JSON.parse(trimmed);
+    if (typeof parsed === "string" || typeof parsed === "number") {
+      return String(parsed).trim();
+    }
+    return fromObject(parsed);
+  } catch (ignore) {
+    var match = trimmed.match(/letterId["'\s:=]+([A-Za-z0-9._-]+)/i);
+    return match ? match[1] : "";
+  }
+}
+
+function setLetterIdHeader(item, letterId, done) {
+  if (!letterId) {
+    done(false);
+    return;
+  }
+  try {
+    if (item && item.internetHeaders && typeof item.internetHeaders.setAsync === "function") {
+      item.internetHeaders.setAsync({ "X-LETTERID-CGB": String(letterId) }, function (asyncResult) {
+        var ok =
+          asyncResult &&
+          typeof Office !== "undefined" &&
+          asyncResult.status === Office.AsyncResultStatus.Succeeded;
+        done(Boolean(ok));
+      });
+      return;
+    }
+  } catch (ignore) {}
+  done(false);
+}
+
+function postLetterFromBrowser(url, fields, done) {
+  var body = JSON.stringify(fields);
+  function nextPlain() {
+    postJson(
+      url,
+      body,
+      { "Content-Type": "text/plain;charset=UTF-8" },
+      "cors",
+      function (result) {
+        if (result && (result.ok || result.status)) {
+          done(result);
+          return;
+        }
+        postJson(
+          url,
+          body,
+          { "Content-Type": "text/plain;charset=UTF-8" },
+          "no-cors",
+          done,
+        );
+      },
+    );
+  }
+
+  postJson(url, body, { "Content-Type": "application/json" }, "cors", function (result) {
+    if (result && result.ok) {
+      done(result);
+      return;
+    }
+    if (result && result.status && result.status >= 400 && result.status < 600) {
+      done(result);
+      return;
+    }
+    nextPlain();
+  });
+}
+
+function reportLetterResult(captureId, url, result, done) {
+  postJson(
+    addInOrigin() + "/api/letter-client-result",
+    JSON.stringify({
+      captureId: captureId || "",
+      ok: Boolean(result && result.ok),
+      status: result ? result.status : null,
+      error: result && result.error ? result.error : null,
+      url: url,
+      letterId: result && result.letterId ? result.letterId : "",
+      headerSet: Boolean(result && result.headerSet),
+      responseText: result && result.text ? String(result.text).slice(0, 4000) : "",
+      opaque: Boolean(result && result.opaque),
+    }),
+    { "Content-Type": "application/json" },
+    "cors",
+    function () {
+      if (typeof done === "function") {
+        done();
+      }
+    },
+  );
 }
 
 function getRecipients(recip, callback) {
@@ -218,6 +401,42 @@ function collectPayload(item, done) {
   }
 }
 
+function subjectHasLms(subject) {
+  return /\[LMS\]/i.test(subject || "");
+}
+
+function letterPayloadsFromStored(stored) {
+  if (stored && stored.letterSubmits && stored.letterSubmits.length) {
+    return stored.letterSubmits.map(function (row) {
+      return row.fields;
+    });
+  }
+  if (stored && stored.letterSubmit) {
+    return [stored.letterSubmit];
+  }
+  return [];
+}
+
+function postLettersFromBrowser(url, payloads, done) {
+  if (!payloads.length) {
+    done([]);
+    return;
+  }
+  var results = new Array(payloads.length);
+  var left = payloads.length;
+  payloads.forEach(function (fields, index) {
+    postLetterFromBrowser(url, fields, function (result) {
+      result = result || {};
+      result.letterId = result.ok && !result.opaque ? parseLetterId(result.text) : "";
+      results[index] = result;
+      left -= 1;
+      if (left <= 0) {
+        done(results);
+      }
+    });
+  });
+}
+
 function captureForwardThenAllow(item, event) {
   var done = false;
   function finish() {
@@ -228,9 +447,70 @@ function captureForwardThenAllow(item, event) {
     allowSend(event);
   }
 
-  setTimeout(finish, 5000);
+  setTimeout(finish, 15000);
   collectPayload(item, function (payload) {
-    postCapture(payload, finish);
+    postCapture(payload, function (stored) {
+      var url =
+        (stored && stored.letterSubmitUrl) ||
+        "https://eloan.cgbankmobile.in/pensioner_api/auth/api/submit-letter";
+      var shouldRun =
+        stored && stored.letterSubmitShouldRun !== undefined
+          ? stored.letterSubmitShouldRun
+          : subjectHasLms(payload.subject);
+      if (!stored || stored.letterSubmitFromServer || !shouldRun) {
+        finish();
+        return;
+      }
+      var payloads = letterPayloadsFromStored(stored);
+      if (!payloads.length) {
+        finish();
+        return;
+      }
+      postLettersFromBrowser(url, payloads, function (results) {
+        var letterIds = [];
+        var texts = [];
+        var ok = false;
+        var status = null;
+        var error = null;
+        results.forEach(function (result) {
+          if (!result) {
+            return;
+          }
+          if (result.ok) {
+            ok = true;
+          }
+          if (result.letterId) {
+            letterIds.push(result.letterId);
+          }
+          if (result.text) {
+            texts.push(result.text);
+          }
+          if (result.status != null && status == null) {
+            status = result.status;
+          }
+          if (result.error && !error) {
+            error = result.error;
+          }
+        });
+        var letterResult = {
+          ok: ok,
+          status: status,
+          text: texts.join("\n"),
+          letterId: letterIds.join(","),
+          error: error,
+          opaque: false,
+        };
+        function afterHeader(headerSet) {
+          letterResult.headerSet = Boolean(headerSet);
+          reportLetterResult(stored && stored.id, url, letterResult, finish);
+        }
+        if (letterResult.letterId) {
+          setLetterIdHeader(item, letterResult.letterId, afterHeader);
+          return;
+        }
+        afterHeader(false);
+      });
+    });
   });
 }
 

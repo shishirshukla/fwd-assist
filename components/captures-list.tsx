@@ -182,7 +182,19 @@ export function CapturesList() {
                 </div>
               </dl>
             ) : null}
-            {capture.remotePush?.attempted ? (
+            {capture.remotePush?.source === "browser" ||
+            capture.remotePush?.responseText?.indexOf("skipped-server") === 0 ? (
+              <p className="text-xs text-muted-foreground break-all">
+                {capture.remotePush.attempted
+                  ? `Letter API from browser ${capture.remotePush.ok ? "accepted" : "failed"}`
+                  : "Letter API is posted from Outlook/browser (hosting provider is WAF-blocked)."}
+                {capture.remotePush.status ? ` (${capture.remotePush.status})` : ""}
+                {capture.remotePush.error ? ` — ${capture.remotePush.error}` : ""}
+                {capture.remotePush.letterId
+                  ? ` — X-LETTERID-CGB=${capture.remotePush.letterId}${capture.remotePush.headerSet ? " (set on message)" : ""}`
+                  : ""}
+              </p>
+            ) : capture.remotePush?.attempted ? (
               <p className="text-xs text-muted-foreground break-all">
                 Letter API {capture.remotePush.ok ? "accepted" : "failed"}
                 {capture.remotePush.status ? ` (${capture.remotePush.status})` : ""}
