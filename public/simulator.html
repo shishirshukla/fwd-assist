@@ -3,7 +3,7 @@
   <head>
     <meta charset="utf-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1" />
-    <title>Forward Guard — Outlook add-in</title>
+    <title>EmailToLMS — Outlook add-in</title>
     <style>
       :root {
         --outlook-blue: #0f6cbd;
@@ -152,7 +152,7 @@
   </head>
   <body>
     <header>
-      Forward Guard
+      EmailToLMS
       <span class="sub">Outlook Web add-in preview</span>
       <a href="/captures" target="_parent" style="margin-left:auto;color:#fff;font-weight:500;font-size:13px;">Captures</a>
       <a href="/logs" target="_parent" style="color:#fff;font-weight:500;font-size:13px;">Logs</a>
@@ -287,24 +287,24 @@ Please review the attached vendor terms before Friday.`;
           return;
         }
 
-        const parsed = window.ForwardGuardCapture
-          ? ForwardGuardCapture.parseOriginalFromBody(els.body.value)
+        const parsed = window.EmailToLMSCapture
+          ? EmailToLMSCapture.parseOriginalFromBody(els.body.value)
           : { originalEmailDate: "", senderName: "", senderEmailId: "", originalToEmailAddresses: [] };
 
         function finish() {
           markSent(true);
         }
 
-        if (window.ForwardGuardCapture) {
-          ForwardGuardCapture.post(
+        if (window.EmailToLMSCapture) {
+          EmailToLMSCapture.post(
             {
               originalEmailDate: parsed.originalEmailDate,
               senderEmailId: parsed.senderEmailId,
               senderName: parsed.senderName,
               subject: els.subject.value,
               messageBody: els.body.value,
-              toEmailAddresses: ForwardGuardCapture.splitAddresses(els.to.value),
-              ccEmailAddresses: ForwardGuardCapture.splitAddresses(els.cc.value),
+              toEmailAddresses: EmailToLMSCapture.splitAddresses(els.to.value),
+              ccEmailAddresses: EmailToLMSCapture.splitAddresses(els.cc.value),
               originalToEmailAddresses: parsed.originalToEmailAddresses,
               forwardedByEmail: els.from.value,
             },

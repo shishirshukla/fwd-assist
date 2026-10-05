@@ -1,4 +1,4 @@
-# Deploy Forward Guard on Railway (no ngrok)
+# Deploy EmailToLMS on Railway (no ngrok)
 
 Railway gives you a stable **HTTPS** URL. Outlook can load the add-in from that URL permanently.
 

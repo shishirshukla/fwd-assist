@@ -1,7 +1,7 @@
 export default function HomePage() {
   return (
     <iframe
-      title="Outlook Forward Guard preview"
+      title="Outlook EmailToLMS preview"
       src="/simulator.html"
       className="h-screen w-full border-0"
     />

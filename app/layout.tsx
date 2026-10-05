@@ -3,7 +3,7 @@ import type { Metadata } from "next";
 import "./globals.css";
 
 export const metadata: Metadata = {
-  title: "Forward Guard — Outlook add-in",
+  title: "EmailToLMS — Outlook add-in",
   description:
     "Intercepts Send on forwarded Outlook messages and submits extracted letter details.",
 };

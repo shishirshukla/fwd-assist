@@ -11,6 +11,9 @@ const addInHeaders = [
 ];
 
 const nextConfig: NextConfig = {
+  outputFileTracingIncludes: {
+    "/launchevent.js": ["./outlook/launchevent.js"],
+  },
   async rewrites() {
     return [{ source: "/manifest.xml", destination: "/manifest" }];
   },
@@ -29,6 +32,7 @@ const nextConfig: NextConfig = {
       { source: "/letter-dummy.html", headers: addInHeaders },
       { source: "/api/deploy-info", headers: addInHeaders },
       { source: "/launchevent.js", headers: addInHeaders },
+      { source: "/.well-known/microsoft-officeaddins-allowed.json", headers: addInHeaders },
       { source: "/commands.html", headers: addInHeaders },
       { source: "/commands.js", headers: addInHeaders },
       { source: "/capture.js", headers: addInHeaders },

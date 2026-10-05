@@ -1,5 +1,5 @@
 {
-  "name": "outlook-forward-guard",
+  "name": "email-to-lms",
   "version": "0.1.0",
   "private": true,
   "engines": {
@@ -11,6 +11,7 @@
     "start": "node scripts/start.mjs",
     "manifest:url": "node scripts/set-manifest-url.mjs",
     "manifest:validate": "node scripts/validate-manifest.mjs",
+    "test:outlook": "node --test scripts/test-outlook-runtime.mjs",
     "lint": "eslint"
   },
   "dependencies": {

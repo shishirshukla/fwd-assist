@@ -1,11 +1,32 @@
-# Forward Guard — Outlook Web add-in
+# EmailToLMS — Outlook add-in
 
-Office add-in for Outlook on the web. It runs when the user clicks **Send**, detects a **forward**, stores the letter fields, and **POSTs submit-letter from the browser** (the WAF blocks the Railway/Node host). Send continues. There is no classification form.
+Office add-in for Outlook on the web, new Outlook for Windows, and supported classic Outlook for Windows. It runs when the user clicks **Send**, detects a **forward**, stores the letter fields, and **POSTs submit-letter from the Outlook client** (the WAF blocks the Railway/Node host). Send continues. There is no classification form in the Send handler.
+
+## Outlook for Windows
+
+- Classic Outlook requires Version **2206 (Build 15330.20196)** or later and a mailbox/server combination that supports **Mailbox 1.12 / Smart Alerts**. New Outlook supports this flow with Exchange Online. See [Microsoft's supported clients](https://learn.microsoft.com/en-us/office/dev/add-ins/outlook/onmessagesend-onappointmentsend-events#supported-clients-and-platforms).
+- Classic Outlook runs `OnMessageSend` in a JavaScript-only runtime; new Outlook and Outlook on the web use the HTML runtime. Both load the same self-contained script from `/launchevent.js`, generated from `outlook/launchevent.js` with an absolute public base URL. No DOM or `location` is needed in classic Outlook.
+- Set **PUBLIC_BASE_URL** to the app's actual, trusted HTTPS origin before deployment. The manifest, generated runtime script, and `/.well-known/microsoft-officeaddins-allowed.json` must agree on this URL. `npm run manifest:url -- https://...` only generates an offline manifest; it does not set the running server's environment.
+- The well-known endpoint authorizes `/launchevent.js` for Windows runtime CORS requests, as required by [Microsoft's guidance](https://learn.microsoft.com/en-us/office/dev/add-ins/develop/use-sso-in-event-based-activation).
+- The external API must allow this origin through CORS, including **OPTIONS**, **POST**, and the **Content-Type** header. Its TLS certificate must be trusted on the user's Windows machine. `AppDomains` does not grant CORS access, and `LETTER_SUBMIT_TLS_INSECURE` affects only the optional Node transport.
+- Download `/manifest.xml` from the deployed app. For development, sideload through [Outlook's custom add-in installation page](https://aka.ms/olksideload); use the same mailbox in the Windows app. For organization rollout, upload the XML as an Office Add-in in Microsoft 365 admin center → Settings → Integrated apps and assign the users. See [event-based deployment guidance](https://learn.microsoft.com/en-us/office/dev/add-ins/outlook/autolaunch#deploy-your-add-in).
+- The add-in ID is preserved and the manifest version is now **1.0.14.0**. Update the existing admin deployment, or remove the old development add-in and sideload the updated manifest; restart Outlook after updating.
+
+External submission remains on the user's computer, including in classic Outlook's background runtime. Each recipient gets one JSON POST. Network/CORS failures are reported as failures without retrying with `no-cors`, which cannot verify success or read a letter ID and may create duplicate records. Sending still continues after failures or the bounded timeout; this workflow does not guarantee LMS delivery.
+
+### Windows verification
+
+Run `npm run test:outlook` for the mocked JavaScript-only runtime checks. Then test on both classic and new Outlook using a test mailbox and an approved test API:
+
+1. Open `/launchevent.js` and the well-known endpoint on the deployment. Confirm the injected base URL and allowed script URL match the manifest's `JsRuntime.Url` exactly.
+2. Forward a message with `[LMS]` in its subject to two mapped To recipients. Click Send with the task pane closed. Verify one capture, two API requests, their result in `/logs`, and `X-LETTERID-CGB` on the delivered message.
+3. Forward without `[LMS]`: verify capture only. Send a new message or reply without a forward prefix: verify no capture.
+4. With a controlled failing test endpoint, verify a failure is logged, no duplicate POST is made, and sending continues. If classic Outlook doesn't activate, confirm the client build, mailbox support, admin assignment, and well-known endpoint first.
 
 ## How it works
 
 1. Outlook raises `OnMessageSend` when Send is clicked.
-2. `public/launchevent.js` treats the item as forwarded when:
+2. `outlook/launchevent.js` treats the item as forwarded when:
    - `getComposeTypeAsync` returns `Forward`, or
    - the subject starts with `FW:` / `Fwd:`
 3. If it is not a forward, send continues with no capture.
@@ -137,7 +158,7 @@ curl -sS -m 45 http://127.0.0.1:43123/api/letter-dummy
 
 `GET` or `POST /api/letter-dummy` POSTs dummy JSON from **Node** (the WAF will still block this). To test the real path, open **`/letter-dummy.html`** and click the button — that POSTs from **your browser**.
 
-After a version bump (now **1.0.13.0**), **remove** Forward Guard and sideload `manifest.xml` again.
+After a version bump (now **1.0.14.0**), **remove** EmailToLMS and sideload `manifest.xml` again.
 
 ```bash
 curl -sS -m 45 https://YOUR-APP.up.railway.app/api/letter-dummy
@@ -178,7 +199,7 @@ Quick steps:
 
 ### Sideload after this change
 
-After a version bump (now **1.0.13.0**), **remove** Forward Guard and sideload `manifest.xml` again. Forward a message whose subject contains **`[LMS]`** and click **Send**. One submit-letter call runs per To address. Returned `letterId` values are written to **`X-LETTERID-CGB`**.
+After a version bump (now **1.0.14.0**), **remove** EmailToLMS and sideload `manifest.xml` again. Forward a message whose subject contains **`[LMS]`** and click **Send**. One submit-letter call runs per To address. Returned `letterId` values are written to **`X-LETTERID-CGB`**.
 
 Every push to `main` triggers a new Railway deploy automatically.
 
@@ -228,7 +249,7 @@ Quick sanity check in a browser:
 3. On the ribbon: **Apps** (or **Get Add-ins**) → **My add-ins**.
 4. Under **Custom add-ins** → **Add a custom add-in** → **Add from file**.
 5. Upload `public/manifest.xml` from your repo (the file you just updated with the tunnel URL).
-6. Accept the prompt. Forward Guard is registered for Send on compose.
+6. Accept the prompt. EmailToLMS is registered for Send on compose.
 
 ### 5. Exercise the Send intercept
 
@@ -274,7 +295,7 @@ If install fails, open browser DevTools (F12) → **Network** while uploading th
 
 ### Remove the test add-in
 
-**My add-ins** → **Custom add-ins** → **⋯** next to Forward Guard → **Remove**.
+**My add-ins** → **Custom add-ins** → **⋯** next to EmailToLMS → **Remove**.
 
 ## Sideload in Outlook on the web (short)
 
@@ -295,7 +316,7 @@ Outlook add-ins must be served over **HTTPS**. Point every `https://localhost:43
 | Path | Role |
 | --- | --- |
 | `public/manifest.template.xml` | Manifest template (URLs injected at request time) |
-| `public/launchevent.js` | Send intercept (no DOM; Office event runtime) |
+| `outlook/launchevent.js` | Send intercept (no DOM; Office event runtime), served with configuration by `app/launchevent.js/route.ts` |
 | `public/commands.html` | Command / runtime HTML host |
 | `public/taskpane.html` | Classification form hosted in Outlook |
 | `public/capture.js` | Collects sender/date/body/TO/CC and POSTs `/api/captures` |

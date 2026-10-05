@@ -99,7 +99,7 @@ export function OutlookSimulator() {
         <Forward className="size-5 shrink-0" />
         <span className="text-sm font-semibold tracking-wide">Outlook</span>
         <span className="hidden text-xs text-white/80 sm:inline">
-          Forward Guard add-in preview
+          EmailToLMS add-in preview
         </span>
       </header>
 

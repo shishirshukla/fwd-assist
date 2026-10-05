@@ -133,7 +133,7 @@
               function () {
                 function finish() {
                   try {
-                    item.notificationMessages.removeAsync("ForwardGuardNotice");
+                    item.notificationMessages.removeAsync("EmailToLMSNotice");
                   } catch (ignore) {}
                   continueAfterSave(priority, endDate, category);
                 }
@@ -159,9 +159,9 @@
       });
     }
 
-    if (window.ForwardGuardCapture && ForwardGuardCapture.collectFromOutlook) {
-      ForwardGuardCapture.collectFromOutlook(item, classification, function (payload) {
-        ForwardGuardCapture.post(payload, saveClassification);
+    if (window.EmailToLMSCapture && EmailToLMSCapture.collectFromOutlook) {
+      EmailToLMSCapture.collectFromOutlook(item, classification, function (payload) {
+        EmailToLMSCapture.post(payload, saveClassification);
       });
       return;
     }

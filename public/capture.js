@@ -383,7 +383,7 @@
     }
   }
 
-  root.ForwardGuardCapture = {
+  root.EmailToLMSCapture = {
     parseOriginalFromBody: parseOriginalFromBody,
     splitAddresses: splitAddresses,
     post: postCapture,

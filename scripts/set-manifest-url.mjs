@@ -31,6 +31,7 @@ const checks = [
   `${nextBase}/taskpane.html`,
   `${nextBase}/commands.html`,
   `${nextBase}/launchevent.js`,
+  `${nextBase}/.well-known/microsoft-officeaddins-allowed.json`,
   `${nextBase}/manifest.xml`,
 ];
 

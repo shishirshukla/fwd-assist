@@ -236,11 +236,11 @@ export function dummyLetterSubmitFields(
   const today = toYyyyMmDd(undefined);
   return letterSubmitPayload({
     receivingDate: today,
-    senderOffice: "debug@forward-guard.local",
-    sendName: "Forward Guard debug",
+    senderOffice: "debug@email-to-lms.local",
+    sendName: "EmailToLMS debug",
     letterNo: "NA",
     letterDate: today,
-    letterDesc: "Forward Guard dummy letter submit",
+    letterDesc: "EmailToLMS dummy letter submit",
     department: "TEST",
     priority: "NA",
     EntryBy: "BOD",

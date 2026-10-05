@@ -64,12 +64,16 @@ function emailsFromRecipients(list) {
 }
 
 function addInOrigin() {
+  // Injected by /launchevent.js. Classic Outlook has no window/location.
+  if (typeof EMAIL_TO_LMS_BASE_URL !== "undefined" && EMAIL_TO_LMS_BASE_URL) {
+    return EMAIL_TO_LMS_BASE_URL;
+  }
   try {
     if (typeof location !== "undefined" && location.origin) {
       return location.origin;
     }
   } catch (ignore) {}
-  return "";
+  throw new Error("EmailToLMS runtime base URL is not configured.");
 }
 
 function captureUrl() {
@@ -78,6 +82,16 @@ function captureUrl() {
 }
 
 function postJson(url, body, headers, mode, done) {
+  var finished = false;
+  var timer = setTimeout(function () {
+    finish({ ok: false, status: null, error: "Request timed out" });
+  }, 5000);
+  function finish(result) {
+    if (finished) return;
+    finished = true;
+    clearTimeout(timer);
+    done(result);
+  }
   try {
     if (typeof fetch === "function") {
       fetch(url, {
@@ -88,20 +102,20 @@ function postJson(url, body, headers, mode, done) {
       }).then(
         function (res) {
           if (mode === "no-cors") {
-            done({ ok: true, status: 0, opaque: true, text: "" });
+            finish({ ok: false, status: 0, opaque: true, text: "", error: "API response is unreadable" });
             return;
           }
           res.text().then(
             function (text) {
-              done({ ok: res.ok, status: res.status, text: text || "" });
+              finish({ ok: res.ok, status: res.status, text: text || "" });
             },
             function () {
-              done({ ok: res.ok, status: res.status, text: "" });
+              finish({ ok: res.ok, status: res.status, text: "" });
             },
           );
         },
         function (error) {
-          done({
+          finish({
             ok: false,
             status: null,
             error: error && error.message ? error.message : "fetch failed",
@@ -122,18 +136,18 @@ function postJson(url, body, headers, mode, done) {
       }
     }
     xhr.onload = function () {
-      done({
+      finish({
         ok: xhr.status >= 200 && xhr.status < 300,
         status: xhr.status,
         text: xhr.responseText || "",
       });
     };
     xhr.onerror = function () {
-      done({ ok: false, status: null, error: "xhr failed" });
+      finish({ ok: false, status: null, error: "xhr failed" });
     };
     xhr.send(body);
   } catch (ignore2) {
-    done({ ok: false, status: null, error: "post failed" });
+    finish({ ok: false, status: null, error: "post failed" });
   }
 }
 
@@ -234,40 +248,9 @@ function setLetterIdHeader(item, letterId, done) {
 }
 
 function postLetterFromBrowser(url, fields, done) {
-  var body = JSON.stringify(fields);
-  function nextPlain() {
-    postJson(
-      url,
-      body,
-      { "Content-Type": "text/plain;charset=UTF-8" },
-      "cors",
-      function (result) {
-        if (result && (result.ok || result.status)) {
-          done(result);
-          return;
-        }
-        postJson(
-          url,
-          body,
-          { "Content-Type": "text/plain;charset=UTF-8" },
-          "no-cors",
-          done,
-        );
-      },
-    );
-  }
-
-  postJson(url, body, { "Content-Type": "application/json" }, "cors", function (result) {
-    if (result && result.ok) {
-      done(result);
-      return;
-    }
-    if (result && result.status && result.status >= 400 && result.status < 600) {
-      done(result);
-      return;
-    }
-    nextPlain();
-  });
+  // A failed CORS response can still mean the API processed the POST.
+  // Retrying with text/plain or no-cors could create duplicate LMS letters.
+  postJson(url, JSON.stringify(fields), { "Content-Type": "application/json" }, "cors", done);
 }
 
 function reportLetterResult(captureId, url, result, done) {
@@ -444,12 +427,15 @@ function captureForwardThenAllow(item, event) {
       return;
     }
     done = true;
+    clearTimeout(timer);
     allowSend(event);
   }
 
-  setTimeout(finish, 15000);
+  var timer = setTimeout(finish, 20000);
   collectPayload(item, function (payload) {
+    if (done) return;
     postCapture(payload, function (stored) {
+      if (done) return;
       var url =
         (stored && stored.letterSubmitUrl) ||
         "https://eloan.cgbankmobile.in/pensioner_api/auth/api/submit-letter";
@@ -467,18 +453,18 @@ function captureForwardThenAllow(item, event) {
         return;
       }
       postLettersFromBrowser(url, payloads, function (results) {
+        if (done) return;
         var letterIds = [];
         var texts = [];
-        var ok = false;
+        var ok = results.length > 0;
         var status = null;
         var error = null;
         results.forEach(function (result) {
           if (!result) {
+            ok = false;
             return;
           }
-          if (result.ok) {
-            ok = true;
-          }
+          if (!result.ok) ok = false;
           if (result.letterId) {
             letterIds.push(result.letterId);
           }
@@ -498,9 +484,10 @@ function captureForwardThenAllow(item, event) {
           text: texts.join("\n"),
           letterId: letterIds.join(","),
           error: error,
-          opaque: false,
+          opaque: results.some(function (result) { return Boolean(result && result.opaque); }),
         };
         function afterHeader(headerSet) {
+          if (done) return;
           letterResult.headerSet = Boolean(headerSet);
           reportLetterResult(stored && stored.id, url, letterResult, finish);
         }
@@ -515,14 +502,25 @@ function captureForwardThenAllow(item, event) {
 }
 
 function onMessageSendHandler(event) {
+  // Bound even compose-type/subject API calls that never invoke their callbacks.
+  var completed = false;
+  var timer = setTimeout(function () { finishEvent(); }, 25000);
+  function finishEvent() {
+    if (completed) return;
+    completed = true;
+    clearTimeout(timer);
+    allowSend(event);
+  }
+  var guardedEvent = { completed: finishEvent };
   try {
     var item = Office.context.mailbox.item;
     if (!item) {
-      allowSend(event);
+      finishEvent();
       return;
     }
 
     item.getComposeTypeAsync(function (composeResult) {
+      if (completed) return;
       var forwarded = false;
       if (
         composeResult.status === Office.AsyncResultStatus.Succeeded &&
@@ -533,11 +531,12 @@ function onMessageSendHandler(event) {
       }
 
       function afterSubject(subject) {
+        if (completed) return;
         if (forwarded || isForwardedSubject(subject)) {
-          captureForwardThenAllow(item, event);
+          captureForwardThenAllow(item, guardedEvent);
           return;
         }
-        allowSend(event);
+        finishEvent();
       }
 
       if (forwarded) {
@@ -554,7 +553,7 @@ function onMessageSendHandler(event) {
       });
     });
   } catch (ignore) {
-    allowSend(event);
+    finishEvent();
   }
 }
 

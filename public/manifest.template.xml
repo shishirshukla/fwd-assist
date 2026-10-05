@@ -6,10 +6,10 @@
   xmlns:mailappor="http://schemas.microsoft.com/office/mailappversionoverrides/1.0"
   xsi:type="MailApp">
   <Id>8c3d6a12-9f41-4b6e-a2d8-71e04c9f1b22</Id>
-  <Version>1.0.13.0</Version>
-  <ProviderName>Forward Guard</ProviderName>
+  <Version>1.0.14.0</Version>
+  <ProviderName>EmailToLMS</ProviderName>
   <DefaultLocale>en-US</DefaultLocale>
-  <DisplayName DefaultValue="Forward Guard" />
+  <DisplayName DefaultValue="EmailToLMS" />
   <Description DefaultValue="On Send, captures forwarded Outlook messages and submits extracted letter details to the API." />
   <IconUrl DefaultValue="https://localhost:43123/icons/icon-64.png" />
   <HighResolutionIconUrl DefaultValue="https://localhost:43123/icons/icon-128.png" />
@@ -85,11 +85,11 @@
         <bt:Url id="Taskpane.Url" DefaultValue="https://localhost:43123/taskpane.html" />
       </bt:Urls>
       <bt:ShortStrings>
-        <bt:String id="GroupLabel" DefaultValue="Forward Guard" />
-        <bt:String id="TaskpaneButton.Label" DefaultValue="Forward Guard" />
+        <bt:String id="GroupLabel" DefaultValue="EmailToLMS" />
+        <bt:String id="TaskpaneButton.Label" DefaultValue="EmailToLMS" />
       </bt:ShortStrings>
       <bt:LongStrings>
-        <bt:String id="TaskpaneButton.Tooltip" DefaultValue="Forward Guard captures forwarded messages on Send." />
+        <bt:String id="TaskpaneButton.Tooltip" DefaultValue="EmailToLMS captures forwarded messages on Send." />
       </bt:LongStrings>
     </Resources>
 
@@ -152,11 +152,11 @@
           <bt:Url id="JsRuntime.Url" DefaultValue="https://localhost:43123/launchevent.js" />
         </bt:Urls>
         <bt:ShortStrings>
-          <bt:String id="GroupLabel" DefaultValue="Forward Guard" />
-          <bt:String id="TaskpaneButton.Label" DefaultValue="Forward Guard" />
+          <bt:String id="GroupLabel" DefaultValue="EmailToLMS" />
+          <bt:String id="TaskpaneButton.Label" DefaultValue="EmailToLMS" />
         </bt:ShortStrings>
         <bt:LongStrings>
-          <bt:String id="TaskpaneButton.Tooltip" DefaultValue="Forward Guard captures forwarded messages on Send." />
+          <bt:String id="TaskpaneButton.Tooltip" DefaultValue="EmailToLMS captures forwarded messages on Send." />
         </bt:LongStrings>
       </Resources>
     </VersionOverrides>
