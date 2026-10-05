@@ -141,6 +141,10 @@ export function mapLetterSubmitFields(input: {
   const departmentDefault = lookup.defaults?.department || "NA";
   const entryByDefault = lookup.defaults?.entryBy || "NA";
   const emailDate = toYyyyMmDd(input.originalEmailDate);
+  const toAddresses = uniqueEmails(input.toEmailAddresses || []);
+  const departments = toAddresses.map((email) =>
+    lookupValue(lookup.departmentByToEmail, [email], departmentDefault),
+  );
 
   return {
     receivingDate: emailDate,
@@ -149,11 +153,7 @@ export function mapLetterSubmitFields(input: {
     letterNo: "NA",
     letterDate: emailDate,
     letterDesc: na(input.subject),
-    department: lookupValue(
-      lookup.departmentByToEmail,
-      [...(input.toEmailAddresses || []), ...(input.originalToEmailAddresses || [])],
-      departmentDefault,
-    ),
+    department: departments.length ? departments.join(",") : departmentDefault,
     priority: na(input.priority),
     EntryBy: lookupValue(
       lookup.entryByFromEmail,
@@ -200,20 +200,21 @@ export function mapLetterSubmitsForToAddresses(input: {
   forwardedByEmail?: string;
 }): LetterSubmitForRecipient[] {
   const tos = uniqueEmails(input.toEmailAddresses || []);
-  const targets = tos.length > 0 ? tos : [""];
-  return targets.map((toEmail) => ({
-    toEmail,
+  // Retain the response shape for both Outlook runtimes and the server transport,
+  // but send one letter containing all mapped departments.
+  return [{
+    toEmail: tos.join(","),
     fields: mapLetterSubmitFields({
       originalEmailDate: input.originalEmailDate,
       senderEmailId: input.senderEmailId,
       senderName: input.senderName,
       subject: input.subject,
       priority: input.priority,
-      toEmailAddresses: toEmail ? [toEmail] : [],
+      toEmailAddresses: tos,
       originalToEmailAddresses: [],
       forwardedByEmail: input.forwardedByEmail,
     }),
-  }));
+  }];
 }
 
 export function letterSubmitPayload(fields: LetterSubmitFields): LetterSubmitFields {

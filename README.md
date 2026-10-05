@@ -12,14 +12,14 @@ Office add-in for Outlook on the web, new Outlook for Windows, and supported cla
 - Download `/manifest.xml` from the deployed app. For development, sideload through [Outlook's custom add-in installation page](https://aka.ms/olksideload); use the same mailbox in the Windows app. For organization rollout, upload the XML as an Office Add-in in Microsoft 365 admin center → Settings → Integrated apps and assign the users. See [event-based deployment guidance](https://learn.microsoft.com/en-us/office/dev/add-ins/outlook/autolaunch#deploy-your-add-in).
 - The add-in ID is preserved and the manifest version is now **1.0.14.0**. Update the existing admin deployment, or remove the old development add-in and sideload the updated manifest; restart Outlook after updating.
 
-External submission remains on the user's computer, including in classic Outlook's background runtime. Each recipient gets one JSON POST. Network/CORS failures are reported as failures without retrying with `no-cors`, which cannot verify success or read a letter ID and may create duplicate records. Sending still continues after failures or the bounded timeout; this workflow does not guarantee LMS delivery.
+External submission remains on the user's computer, including in classic Outlook's background runtime. Each forward gets one JSON POST with every To address mapped to a department, joined by commas in the `department` field (for example, `IT,HR,NA`). Unmapped addresses use the configured default; duplicate email addresses are removed case-insensitively. Network/CORS failures are reported as failures without retrying with `no-cors`, which cannot verify success or read a letter ID and may create duplicate records. Sending still continues after failures or the bounded timeout; this workflow does not guarantee LMS delivery.
 
 ### Windows verification
 
 Run `npm run test:outlook` for the mocked JavaScript-only runtime checks. Then test on both classic and new Outlook using a test mailbox and an approved test API:
 
 1. Open `/launchevent.js` and the well-known endpoint on the deployment. Confirm the injected base URL and allowed script URL match the manifest's `JsRuntime.Url` exactly.
-2. Forward a message with `[LMS]` in its subject to two mapped To recipients. Click Send with the task pane closed. Verify one capture, two API requests, their result in `/logs`, and `X-LETTERID-CGB` on the delivered message.
+2. Forward a message with `[LMS]` in its subject to two mapped To recipients. Click Send with the task pane closed. Verify one capture, one API request with both departments separated by a comma, its result in `/logs`, and `X-LETTERID-CGB` on the delivered message.
 3. Forward without `[LMS]`: verify capture only. Send a new message or reply without a forward prefix: verify no capture.
 4. With a controlled failing test endpoint, verify a failure is logged, no duplicate POST is made, and sending continues. If classic Outlook doesn't activate, confirm the client build, mailbox support, admin assignment, and well-known endpoint first.
 
@@ -30,7 +30,7 @@ Run `npm run test:outlook` for the mocked JavaScript-only runtime checks. Then t
    - `getComposeTypeAsync` returns `Forward`, or
    - the subject starts with `FW:` / `Fwd:`
 3. If it is not a forward, send continues with no capture.
-4. If it is a forward, the add-in reads sender, date, subject, body, and To/Cc, `POST`s `/api/captures`. If the subject contains **`[LMS]`**, it POSTs submit-letter **once per To address** from Outlook/the browser, sets `X-LETTERID-CGB` from returned `letterId` values, then allows send. Without `[LMS]`, send continues with no letter API call.
+4. If it is a forward, the add-in reads sender, date, subject, body, and To/Cc, `POST`s `/api/captures`. If the subject contains **`[LMS]`**, it POSTs submit-letter **once with all To departments joined by commas** from Outlook/the browser, sets `X-LETTERID-CGB` from returned `letterId` values, then allows send. Without `[LMS]`, send continues with no letter API call.
 
 The home page embeds an **Outlook-style simulator** (`/simulator.html`) so you can try the same flow in a browser without sideloading.
 
@@ -127,7 +127,7 @@ as **POST** `Content-Type: application/json`:
 | `letterNo` | Always `NA` |
 | `letterDesc` | Subject line |
 | `priority` | `NA` (no form). Override later via lookup if needed |
-| `department` | Lookup of the forward **To** address in `data/letter-lookup.json` |
+| `department` | Lookup of each forward **To** address in `data/letter-lookup.json`, joined by commas (e.g. `IT,HR`) |
 | `EntryBy` | Lookup of the forward **From** address (mailbox user) in `data/letter-lookup.json` |
 
 Edit **`data/letter-lookup.json`** to add live bank addresses:
@@ -199,7 +199,7 @@ Quick steps:
 
 ### Sideload after this change
 
-After a version bump (now **1.0.14.0**), **remove** EmailToLMS and sideload `manifest.xml` again. Forward a message whose subject contains **`[LMS]`** and click **Send**. One submit-letter call runs per To address. Returned `letterId` values are written to **`X-LETTERID-CGB`**.
+After a version bump (now **1.0.14.0**), **remove** EmailToLMS and sideload `manifest.xml` again. Forward a message whose subject contains **`[LMS]`** and click **Send**. One submit-letter call includes all To departments as a comma-separated string. Returned `letterId` values are written to **`X-LETTERID-CGB`**.
 
 Every push to `main` triggers a new Railway deploy automatically.
 
